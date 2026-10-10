@@ -8,27 +8,64 @@ window.switchAdminTab = function(tabName) {
     document.getElementById('admin-tab-courses').classList.add('hidden');
     document.getElementById('admin-tab-students').classList.add('hidden');
     document.getElementById('admin-tab-reports').classList.add('hidden');
+    const tenantTab = document.getElementById('admin-tab-tenants');
+    if (tenantTab) tenantTab.classList.add('hidden');
 
     document.getElementById('tab-btn-courses').className = 'px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition';
     document.getElementById('tab-btn-students').className = 'px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition';
     document.getElementById('tab-btn-reports').className = 'px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition';
+    const tenantBtn = document.getElementById('tab-btn-tenants');
+    if (tenantBtn && !tenantBtn.classList.contains('hidden')) {
+        tenantBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded text-purple-300 hover:text-white transition bg-purple-600/20 border border-purple-500/30';
+    }
 
     document.getElementById(`admin-tab-${tabName}`).classList.remove('hidden');
-    document.getElementById(`tab-btn-${tabName}`).className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition';
+    
+    if (tabName === 'tenants') {
+        tenantBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-purple-600 text-white transition';
+        loadTenantsList();
+    } else {
+        document.getElementById(`tab-btn-${tabName}`).className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition';
+    }
 };
 
-// Verify admin authentication and load tenant context on load
+// Verify admin authentication and check role privileges
 (async () => {
-    currentAdminProfile = await checkAuth('admin');
-    if (currentAdminProfile) {
+    // Allows either 'admin' or 'super_admin' roles
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        window.location.href = './index.html';
+        return;
+    }
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('*, tenants(name, slug)')
+        .eq('id', session.user.id)
+        .single();
+
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
+        window.location.href = './index.html';
+        return;
+    }
+
+    currentAdminProfile = profile;
+
+    // If Super Admin, reveal Platform Tenants tab and configure header
+    if (currentAdminProfile.role === 'super_admin') {
+        const tenantBtn = document.getElementById('tab-btn-tenants');
+        if (tenantBtn) tenantBtn.classList.remove('hidden');
+        const navTitle = document.querySelector('nav h1');
+        if (navTitle) navTitle.textContent = `Platform Super-Admin Portal — Ecosystem Control`;
+    } else {
         const tenantName = currentAdminProfile.tenants?.name || 'Organization';
         const navTitle = document.querySelector('nav h1');
         if (navTitle) navTitle.textContent = `${tenantName} LMS — Admin Portal`;
-
-        loadDashboardStats();
-        fetchAdminCourses();
-        fetchComplianceReports();
     }
+
+    loadDashboardStats();
+    fetchAdminCourses();
+    fetchComplianceReports();
 })();
 
 // Load Dashboard Metrics
@@ -128,7 +165,7 @@ window.toggleLessonInput = function(courseId, selectedType) {
     }
 };
 
-// Create Course Form Handler (with tenant_id)
+// Create Course Form Handler
 document.getElementById('create-course-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = document.getElementById('course-title').value;
@@ -147,13 +184,19 @@ document.getElementById('create-course-form').addEventListener('submit', async (
         }
     }
 
-    const { error } = await supabase.from('courses').insert([{ 
+    const coursePayload = { 
         title, 
         description, 
         ceu_credits, 
-        thumbnail_url,
-        tenant_id: currentAdminProfile.tenant_id 
-    }]);
+        thumbnail_url
+    };
+
+    // If regular admin, attach tenant_id. Super admins can also attach tenant_id if desired or leave null.
+    if (currentAdminProfile.role === 'admin' && currentAdminProfile.tenant_id) {
+        coursePayload.tenant_id = currentAdminProfile.tenant_id;
+    }
+
+    const { error } = await supabase.from('courses').insert([coursePayload]);
 
     if (error) {
         alert('Error creating course: ' + error.message);
@@ -207,15 +250,18 @@ window.handleUploadLesson = async function(e, courseId) {
         }
     }
 
-    const { error: dbError } = await supabase.from('lessons').insert([
-        {
-            course_id: courseId,
-            title: title,
-            lesson_type: lesson_type,
-            content_url: content_url,
-            tenant_id: currentAdminProfile.tenant_id
-        }
-    ]);
+    const lessonPayload = {
+        course_id: courseId,
+        title: title,
+        lesson_type: lesson_type,
+        content_url: content_url
+    };
+
+    if (currentAdminProfile.role === 'admin' && currentAdminProfile.tenant_id) {
+        lessonPayload.tenant_id = currentAdminProfile.tenant_id;
+    }
+
+    const { error: dbError } = await supabase.from('lessons').insert([lessonPayload]);
 
     if (dbError) {
         alert('Error saving lesson record: ' + dbError.message);
@@ -240,7 +286,7 @@ window.deleteLesson = async function(lessonId) {
 window.addAgentRow = function() {
     const container = document.getElementById('agent-rows-container');
     const row = document.createElement('div');
-    row.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-900 p-3 rounded-lg border border-slate-700 agent-row relative';
+    row.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950 p-3 rounded-lg border border-slate-800 agent-row relative';
     row.innerHTML = `
         <div>
             <label class="block text-xs font-medium text-slate-400 mb-1">Agent ID</label>
@@ -260,7 +306,7 @@ window.addAgentRow = function() {
 window.addOrgRow = function() {
     const container = document.getElementById('org-rows-container');
     const row = document.createElement('div');
-    row.className = 'bg-slate-900 p-4 rounded-lg border border-slate-700 org-row space-y-3 relative';
+    row.className = 'bg-slate-950 p-4 rounded-lg border border-slate-800 org-row space-y-3 relative';
     row.innerHTML = `
         <div class="flex justify-between items-center">
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Additional Organization</span>
@@ -269,11 +315,11 @@ window.addOrgRow = function() {
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
                 <label class="block text-xs font-medium text-slate-400 mb-1">Organization Name</label>
-                <input type="text" required class="org-name-input w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100" placeholder="Agency or Company Name">
+                <input type="text" required class="org-name-input w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100" placeholder="Agency Name">
             </div>
             <div>
                 <label class="block text-xs font-medium text-slate-400 mb-1">Org Phone</label>
-                <input type="text" required class="org-phone-input w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100" placeholder="e.g. 555-987-6543">
+                <input type="text" required class="org-phone-input w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100" placeholder="555-987-6543">
             </div>
             <div>
                 <label class="block text-xs font-medium text-slate-400 mb-1">Org Street Address</label>
@@ -302,7 +348,7 @@ window.addOrgRow = function() {
     container.appendChild(row);
 };
 
-// Provision Student with tenant_id linkage
+// Provision Student Form Handler
 document.getElementById('provision-student-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const successBox = document.getElementById('student-success-msg');
@@ -330,8 +376,7 @@ document.getElementById('provision-student-form').addEventListener('submit', asy
     }
 
     const userId = authData.user.id;
-
-    const { error: profileError } = await supabase.from('profiles').upsert([{
+    const profilePayload = {
         id: userId, 
         email, 
         role: 'student', 
@@ -343,9 +388,14 @@ document.getElementById('provision-student-form').addEventListener('submit', asy
         street_address_2, 
         city, 
         state, 
-        zip,
-        tenant_id: currentAdminProfile.tenant_id
-    }]);
+        zip
+    };
+
+    if (currentAdminProfile.tenant_id) {
+        profilePayload.tenant_id = currentAdminProfile.tenant_id;
+    }
+
+    const { error: profileError } = await supabase.from('profiles').upsert([profilePayload]);
 
     if (profileError) {
         errorBox.textContent = 'Profile Error: ' + profileError.message;
@@ -357,34 +407,25 @@ document.getElementById('provision-student-form').addEventListener('submit', asy
     for (let row of agentRows) {
         const agent_id = row.querySelector('.agent-id-input').value;
         const agent_state = row.querySelector('.agent-state-input').value;
-        await supabase.from('student_agent_licenses').insert([{ 
-            user_id: userId, 
-            agent_id, 
-            agent_state,
-            tenant_id: currentAdminProfile.tenant_id 
-        }]);
+        const agentPayload = { user_id: userId, agent_id, agent_state };
+        if (currentAdminProfile.tenant_id) agentPayload.tenant_id = currentAdminProfile.tenant_id;
+        await supabase.from('student_agent_licenses').insert([agentPayload]);
     }
 
     const orgRows = document.querySelectorAll('.org-row');
     for (let row of orgRows) {
-        const org_name = row.querySelector('.org-name-input').value;
-        const org_phone = row.querySelector('.org-phone-input').value;
-        const org_street = row.querySelector('.org-street-input').value;
-        const org_street_2 = row.querySelector('.org-street2-input').value;
-        const org_city = row.querySelector('.org-city-input').value;
-        const org_state = row.querySelector('.org-state-input').value;
-        const org_zip = row.querySelector('.org-zip-input').value;
-        await supabase.from('student_organizations').insert([{ 
-            user_id: userId, 
-            org_name, 
-            org_phone, 
-            org_street, 
-            org_street_2, 
-            org_city, 
-            org_state, 
-            org_zip,
-            tenant_id: currentAdminProfile.tenant_id 
-        }]);
+        const orgPayload = {
+            user_id: userId,
+            org_name: row.querySelector('.org-name-input').value,
+            org_phone: row.querySelector('.org-phone-input').value,
+            org_street: row.querySelector('.org-street-input').value,
+            org_street_2: row.querySelector('.org-street2-input').value,
+            org_city: row.querySelector('.org-city-input').value,
+            org_state: row.querySelector('.org-state-input').value,
+            org_zip: row.querySelector('.org-zip-input').value
+        };
+        if (currentAdminProfile.tenant_id) orgPayload.tenant_id = currentAdminProfile.tenant_id;
+        await supabase.from('student_organizations').insert([orgPayload]);
     }
 
     successBox.textContent = `Student ${first_name} ${last_name} (ID: ${unique_identifier}) successfully provisioned!`;
@@ -394,12 +435,118 @@ document.getElementById('provision-student-form').addEventListener('submit', asy
     fetchComplianceReports();
 });
 
+// --- SUPER ADMIN TENANT MANAGEMENT LOGIC ---
+async function loadTenantsList() {
+    const tbody = document.getElementById('tenants-table-tbody');
+    const select = document.getElementById('admin-tenant-select');
+
+    try {
+        const { data: tenants, error } = await supabase.from('tenants').select('*').order('created_at', { ascending: false });
+
+        if (error || !tenants || tenants.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500 italic">No tenant organizations found.</td></tr>`;
+            if (select) select.innerHTML = `<option value="">-- No Tenants Available --</option>`;
+            return;
+        }
+
+        tbody.innerHTML = tenants.map(t => `
+            <tr class="hover:bg-slate-950/50">
+                <td class="p-3 font-semibold text-purple-300">${t.name}</td>
+                <td class="p-3 font-mono text-slate-400">${t.slug}</td>
+                <td class="p-3 font-mono text-[11px] text-slate-500">${t.id}</td>
+                <td class="p-3 text-slate-400">${new Date(t.created_at).toLocaleDateString()}</td>
+            </tr>
+        `).join('');
+
+        if (select) {
+            select.innerHTML = `<option value="">-- Choose Tenant --</option>` + tenants.map(t => `<option value="${t.id}">${t.name} (${t.slug})</option>`).join('');
+        }
+    } catch (err) {
+        console.error('Error loading tenants list:', err);
+    }
+}
+
+// Create Tenant Organization Form Handler
+document.getElementById('create-tenant-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const successBox = document.getElementById('tenant-success-msg');
+    const errorBox = document.getElementById('tenant-error-msg');
+    successBox.classList.add('hidden');
+    errorBox.classList.add('hidden');
+
+    const name = document.getElementById('tenant-name').value;
+    const slug = document.getElementById('tenant-slug').value.trim().toLowerCase().replace(/\s+/g, '-');
+
+    const { error } = await supabase.from('tenants').insert([{ name, slug }]);
+
+    if (error) {
+        errorBox.textContent = 'Error creating tenant: ' + error.message;
+        errorBox.classList.remove('hidden');
+    } else {
+        successBox.textContent = `Organization "${name}" successfully created!`;
+        successBox.classList.remove('hidden');
+        document.getElementById('create-tenant-form').reset();
+        loadTenantsList();
+    }
+});
+
+// Provision Tenant Admin Form Handler
+document.getElementById('provision-tenant-admin-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const successBox = document.getElementById('admin-success-msg');
+    const errorBox = document.getElementById('admin-error-msg');
+    successBox.classList.add('hidden');
+    errorBox.classList.add('hidden');
+
+    const tenant_id = document.getElementById('admin-tenant-select').value;
+    const email = document.getElementById('admin-prov-email').value;
+    const password = document.getElementById('admin-prov-pass').value;
+
+    if (!tenant_id) {
+        errorBox.textContent = 'Please select a tenant organization.';
+        errorBox.classList.remove('hidden');
+        return;
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+    if (authError) {
+        errorBox.textContent = 'Auth Error: ' + authError.message;
+        errorBox.classList.remove('hidden');
+        return;
+    }
+
+    const userId = authData.user.id;
+
+    const { error: profileError } = await supabase.from('profiles').upsert([{
+        id: userId,
+        email: email,
+        role: 'admin',
+        tenant_id: tenant_id,
+        first_name: 'Tenant',
+        last_name: 'Administrator'
+    }]);
+
+    if (profileError) {
+        errorBox.textContent = 'Profile Mapping Error: ' + profileError.message;
+        errorBox.classList.remove('hidden');
+        return;
+    }
+
+    successBox.textContent = `Tenant Administrator for ${email} successfully provisioned!`;
+    successBox.classList.remove('hidden');
+    document.getElementById('provision-tenant-admin-form').reset();
+});
+
 async function fetchComplianceReports() {
     const tbody = document.getElementById('compliance-report-tbody');
-    const { data: completions, error } = await supabase
-        .from('student_completions')
-        .select('completed_at, courses(title, ceu_credits), profiles(first_name, last_name, unique_identifier)')
-        .order('completed_at', { ascending: false });
+    let query = supabase.from('student_completions').select('completed_at, courses(title, ceu_credits), profiles(first_name, last_name, unique_identifier)');
+    
+    // If regular admin, filter by tenant. Super admin sees all.
+    if (currentAdminProfile.role === 'admin' && currentAdminProfile.tenant_id) {
+        query = query.eq('tenant_id', currentAdminProfile.tenant_id);
+    }
+
+    const { data: completions, error } = await query.order('completed_at', { ascending: false });
 
     if (error || !completions || completions.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500 italic">No course completions recorded yet.</td></tr>`;
