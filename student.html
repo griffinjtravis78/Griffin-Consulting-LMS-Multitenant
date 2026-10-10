@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Participant Portal - Griffin Consulting LMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between">
+    <div>
+        <nav class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4" aria-label="Main Navigation">
+            <div class="flex items-center gap-4 flex-wrap">
+                <h1 class="text-xl font-bold text-blue-400">Griffin Consulting LMS — Student Portal</h1>
+                <div class="flex gap-2 bg-slate-900 p-1 rounded-lg border border-slate-700">
+                    <button onclick="window.switchStudentTab('courses')" id="tab-btn-courses" class="px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500">Training Portal</button>
+                    <button onclick="window.switchStudentTab('profile')" id="tab-btn-profile" class="px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500">My Profile & Licensing</button>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+                <button onclick="window.openTranscriptModal()" class="px-4 py-2 bg-blue-600/20 text-blue-400 border border-blue-600/30 hover:bg-blue-600 hover:text-white rounded-lg text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500">View Official Transcript</button>
+                <button id="logout-btn" class="px-4 py-2 bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white rounded-lg text-sm transition focus:outline-none focus:ring-2 focus:ring-red-500">Sign Out</button>
+            </div>
+        </nav>
+
+        <main class="max-w-7xl mx-auto p-6">
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 mb-6 flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h2 id="welcome-banner" class="text-2xl font-bold">Welcome back, Learner!</h2>
+                    <p class="text-slate-400 text-sm mt-1">Access your active training modules, manage your professional licensing credentials, and earn verified CEUs.</p>
+                </div>
+            </div>
+
+            <!-- TAB 1: TRAINING COURSES & PLAYER -->
+            <div id="student-tab-courses" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Enrolled Courses List -->
+                <div class="lg:col-span-1 bg-slate-800 p-6 rounded-xl border border-slate-700 h-fit">
+                    <h3 class="text-lg font-semibold mb-4 text-blue-400">Available Courses</h3>
+                    <div id="student-course-list" class="space-y-4">
+                        <p class="text-slate-400 text-sm">Loading courses...</p>
+                    </div>
+                </div>
+
+                <!-- Course Player / Lesson View Area -->
+                <div id="lesson-viewer-container" class="lg:col-span-2 bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <h3 class="text-lg font-semibold mb-4 text-slate-300">Course Player</h3>
+                    <div id="active-lesson-display" class="text-center py-16 text-slate-500">
+                        <p class="text-sm">Select a course and lesson from the left to start learning.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: STUDENT PROFILE & IMMUTABLE LEDGER -->
+            <div id="student-tab-profile" class="hidden space-y-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-blue-400">Participant Profile & Licensing Record</h2>
+                            <p class="text-slate-400 text-sm mt-1">Review your official registered information, active agent credentials, and employing organizations.</p>
+                        </div>
+                        <div id="profile-status-badge" class="px-3 py-1 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold">Active & Verified</div>
+                    </div>
+
+                    <div id="profile-success-msg" class="hidden mb-4 p-3 bg-emerald-900/40 border border-emerald-500 text-emerald-300 text-xs rounded-lg"></div>
+                    <div id="profile-error-msg" class="hidden mb-4 p-3 bg-red-900/40 border border-red-500 text-red-300 text-xs rounded-lg"></div>
+
+                    <!-- Profile Update Form -->
+                    <form id="update-profile-form" class="space-y-6">
+                        <div class="border-b border-slate-700 pb-4">
+                            <h3 class="text-sm font-semibold text-slate-200 mb-3 uppercase tracking-wider">1. Personal & Contact Information</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-300 mb-1">First Name *</label>
+                                    <input type="text" id="prof-firstname" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-300 mb-1">Last Name *</label>
+                                    <input type="text" id="prof-lastname" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-300 mb-1">Phone Number *</label>
+                                    <input type="text" id="prof-phone" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100" placeholder="e.g. 555-123-4567">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs font-medium text-slate-300 mb-1">Street Address *</label>
+                                    <input type="text" id="prof-street" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-300 mb-1">Street Address 2</label>
+                                    <input type="text" id="prof-street2" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-300 mb-1">City *</label>
+                                    <input type="text" id="prof-city" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-300 mb-1">State & Zip *</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="prof-state" required class="w-16 px-2 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100" placeholder="MO">
+                                        <input type="text" id="prof-zip" required class="w-full px-2 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100" placeholder="Zip">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Agent Licenses Display / Management -->
+                        <div class="border-b border-slate-700 pb-4">
+                            <h3 class="text-sm font-semibold text-slate-200 mb-3 uppercase tracking-wider">2. Agent Licensing Credentials</h3>
+                            <div id="profile-agent-list" class="space-y-2 mb-3">
+                                <p class="text-xs text-slate-400 italic">Loading agent licenses...</p>
+                            </div>
+                        </div>
+
+                        <!-- Organizations Display / Management -->
+                        <div class="border-b border-slate-700 pb-4">
+                            <h3 class="text-sm font-semibold text-slate-200 mb-3 uppercase tracking-wider">3. Associated Organizations & Employers</h3>
+                            <div id="profile-org-list" class="space-y-3 mb-3">
+                                <p class="text-xs text-slate-400 italic">Loading organizations...</p>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <p class="text-xs text-slate-400 italic">Note: Profile updates are recorded in an immutable audit ledger for state regulatory compliance.</p>
+                            <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg text-sm transition">Save Profile Changes</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Immutable Audit Ledger History View -->
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <h3 class="text-lg font-semibold text-slate-200 mb-2">Immutable Profile Audit Ledger</h3>
+                    <p class="text-slate-400 text-xs mb-4">Tamper-evident log tracking every modification made to your participant profile and licensing records.</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-900 text-slate-300 border-b border-slate-700">
+                                    <th class="p-3">Timestamp</th>
+                                    <th class="p-3">Changed By User ID</th>
+                                    <th class="p-3">Previous State Snapshot</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-ledger-tbody" class="divide-y divide-slate-700 text-slate-300 font-mono">
+                                <tr><td colspan="3" class="p-4 text-center text-slate-500 italic">Loading immutable audit logs...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Universal Legal Footer -->
+    <footer class="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-6">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
+            <p>© 2026 Griffin Consulting. All rights reserved. Strategy | Performance | People.</p>
+            <div class="flex flex-wrap gap-4 justify-center">
+                <button onclick="window.openLegalModal('terms')" class="hover:text-blue-400 transition focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1">Terms of Service</button>
+                <button onclick="window.openLegalModal('privacy')" class="hover:text-blue-400 transition focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1">Privacy Policy</button>
+                <button onclick="window.openLegalModal('ip')" class="hover:text-blue-400 transition focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1">IP & Copyright</button>
+                <button onclick="window.openLegalModal('outcomes')" class="hover:text-blue-400 transition focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1">Outcome Disclaimer</button>
+                <button onclick="window.openLegalModal('accessibility')" class="hover:text-blue-400 transition focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1">Accessibility</button>
+            </div>
+        </div>
+    </footer>
+
+    <script type="module">
+        import { checkAuth, supabase } from './assets/js/app.js';
+        import './assets/js/student.js';
+        
+        (async () => {
+            const profile = await checkAuth('student');
+            if (profile) {
+                const displayName = profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}` : profile.email;
+                document.getElementById('welcome-banner').textContent = `Welcome back, ${displayName}!`;
+            }
+        })();
+
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            window.location.href = './index.html';
+        });
+    </script>
+</body>
+</html>
