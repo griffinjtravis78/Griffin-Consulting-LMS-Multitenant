@@ -6,6 +6,10 @@ let currentStudentProfile = null;
 (async () => {
     currentStudentProfile = await checkAuth('student');
     if (currentStudentProfile) {
+        const tenantName = currentStudentProfile.tenants?.name || 'Organization';
+        const navTitle = document.querySelector('nav h1');
+        if (navTitle) navTitle.textContent = `${tenantName} LMS — Student Portal`;
+
         fetchStudentCourses();
         loadStudentProfileData();
     }
@@ -31,7 +35,6 @@ async function fetchStudentCourses() {
     const container = document.getElementById('student-course-list');
     try {
         const { data: courses, error } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
-        console.log('Student Courses Fetch:', { courses, error });
 
         if (error) {
             container.innerHTML = `<p class="text-red-400 text-sm">Error: ${error.message}</p>`;
@@ -123,7 +126,6 @@ window.playLesson = function(type, url, title) {
     } else if (type === 'pdf') {
         mediaElement = `<iframe src="${url}" class="w-full h-[500px] rounded-lg border border-slate-700"></iframe>`;
     } else {
-        // Option B: SCORM / HTML5 Interactive Course Player & Viewer
         mediaElement = `
             <div class="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden">
                 <div class="p-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center text-xs">
@@ -146,11 +148,13 @@ window.playLesson = function(type, url, title) {
     `;
 };
 
+// Course Completion with tenant_id tagging
 window.markCourseComplete = async function(courseId) {
     const { error } = await supabase.from('student_completions').insert([{
         user_id: currentStudentProfile.id,
         course_id: courseId,
-        status: 'Completed / Verified'
+        status: 'Completed / Verified',
+        tenant_id: currentStudentProfile.tenant_id
     }]);
 
     if (error) {
@@ -161,7 +165,6 @@ window.markCourseComplete = async function(courseId) {
     }
 };
 
-// --- PROFILE MANAGEMENT & IMMUTABLE LEDGER ---
 async function loadStudentProfileData() {
     if (!currentStudentProfile) return;
 
@@ -215,7 +218,7 @@ async function loadStudentProfileData() {
             </tr>
         `).join('');
     } else {
-        auditTbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-500 italic">No audit history recorded yet. Updates will generate immutable ledger entries.</td></tr>`;
+        auditTbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-500 italic">No audit history recorded yet.</td></tr>`;
     }
 }
 
@@ -241,131 +244,14 @@ document.getElementById('update-profile-form').addEventListener('submit', async 
 
     if (error) {
         errorBox.textContent = 'Error updating profile: ' + error.message;
-        errorBox.classList.add('hidden');
+        errorBox.classList.remove('hidden');
     } else {
-        successBox.textContent = 'Profile successfully updated! Immutable audit ledger entry recorded.';
+        successBox.textContent = 'Profile successfully updated!';
         successBox.classList.remove('hidden');
         
-        const { data: updated } = await supabase.from('profiles').select('*').eq('id', currentStudentProfile.id).single();
+        const { data: updated } = await supabase.from('profiles').select('*, tenants(name, slug)').eq('id', currentStudentProfile.id).single();
         if (updated) currentStudentProfile = updated;
         
-        const displayName = currentStudentProfile.first_name && currentStudentProfile.last_name ? `${currentStudentProfile.first_name} ${currentStudentProfile.last_name}` : currentStudentProfile.email;
-        document.getElementById('welcome-banner').textContent = `Welcome back, ${displayName}!`;
-
         loadStudentProfileData();
     }
 });
-
-// --- OFFICIAL TRANSCRIPT MODAL & PRINT PIPELINE ---
-window.openTranscriptModal = async function() {
-    const { data: completions } = await supabase
-        .from('student_completions')
-        .select('completed_at, course_id')
-        .eq('user_id', currentStudentProfile.id);
-
-    const { data: courses } = await supabase.from('courses').select('*');
-    const courseMap = {};
-    if (courses) {
-        courses.forEach(c => { courseMap[c.id] = c; });
-    }
-
-    const { data: orgs } = await supabase
-        .from('student_organizations')
-        .select('*')
-        .eq('user_id', currentStudentProfile.id);
-
-    const primaryOrg = orgs && orgs.length > 0 ? orgs[0].org_name : 'Independent / Unaffiliated';
-    const totalModules = completions ? completions.length : 0;
-    const totalCEUs = completions ? completions.reduce((acc, c) => {
-        const crs = courseMap[c.course_id];
-        return acc + (crs && crs.ceu_credits ? parseFloat(crs.ceu_credits) : 0);
-    }, 0) : 0;
-
-    let modal = document.getElementById('transcript-modal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'transcript-modal';
-        modal.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto';
-        document.body.appendChild(modal);
-    }
-
-    modal.innerHTML = `
-        <div class="bg-white text-slate-900 rounded-xl max-w-4xl w-full p-8 shadow-2xl relative my-8 print:p-0 print:shadow-none">
-            <div class="flex justify-between items-start border-b border-slate-300 pb-4 mb-6">
-                <div>
-                    <h2 class="text-xl font-extrabold tracking-wide text-blue-900">GRIFFIN CONSULTING</h2>
-                    <p class="text-xs font-semibold tracking-wider text-slate-500">STRATEGY | PERFORMANCE | PEOPLE</p>
-                    <h1 class="text-lg font-bold text-slate-800 mt-2">OFFICIAL COURSE TRANSCRIPT</h1>
-                </div>
-                <div class="flex gap-2 print:hidden">
-                    <button onclick="window.print()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold">Print / Save PDF</button>
-                    <button onclick="document.getElementById('transcript-modal').remove()" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-xs font-semibold">Close</button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4 text-xs mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div>
-                    <p><strong class="text-slate-600">Student Legal Name:</strong> ${currentStudentProfile.first_name || ''} ${currentStudentProfile.last_name || ''}</p>
-                    <p class="mt-1"><strong class="text-slate-600">Student ID / Employee ID:</strong> ${currentStudentProfile.unique_identifier || 'N/A'}</p>
-                </div>
-                <div>
-                    <p><strong class="text-slate-600">Organization / Agency:</strong> ${primaryOrg}</p>
-                    <p class="mt-1"><strong class="text-slate-600">Date of Issuance:</strong> ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Academic & Professional Development Record</h3>
-                <table class="w-full text-left border-collapse text-xs">
-                    <thead>
-                        <tr class="bg-slate-100 border-b border-slate-300 text-slate-700">
-                            <th class="p-2.5">Course Code</th>
-                            <th class="p-2.5">Course Title</th>
-                            <th class="p-2.5">Completion Date</th>
-                            <th class="p-2.5">CEU Credits</th>
-                            <th class="p-2.5">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-200">
-                        ${completions && completions.length > 0 ? completions.map((c, idx) => {
-                            const crs = courseMap[c.course_id] || {};
-                            return `
-                                <tr>
-                                    <td class="p-2.5 font-mono">GC-CRS-${c.course_id}</td>
-                                    <td class="p-2.5 font-semibold">${crs.title || 'Course'}</td>
-                                    <td class="p-2.5 text-slate-600">${new Date(c.completed_at).toISOString().split('T')[0]}</td>
-                                    <td class="p-2.5">${crs.ceu_credits || 0} CEUs</td>
-                                    <td class="p-2.5 text-emerald-700 font-medium">Completed / Verified</td>
-                                </tr>
-                            `;
-                        }).join('') : `<tr><td colspan="5" class="p-4 text-center text-slate-500 italic">No completed coursework recorded yet.</td></tr>`}
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-xs mb-6 space-y-1">
-                <h4 class="font-bold uppercase tracking-wider text-slate-700 mb-2">Summary of Credentials</h4>
-                <p><strong>Total Modules Completed:</strong> ${totalModules} Modules</p>
-                <p><strong>Total Continuing Education Units (CEUs):</strong> ${totalCEUs} CEUs</p>
-                <p><strong>Overall Standing:</strong> ${totalModules > 0 ? 'Satisfactory Completion / Certified Practitioner' : 'Enrolled'}</p>
-            </div>
-
-            <div class="text-xs text-slate-600 border-t border-slate-200 pt-4 mb-8 space-y-2">
-                <p><strong>Authentication & Compliance Disclaimer:</strong> This transcript is generated electronically by the Griffin Consulting LMS platform. Completion records reflect successful mastery of coursework aligned with professional development and regulatory standards.</p>
-            </div>
-
-            <div class="flex justify-between items-end pt-4">
-                <div>
-                    <p class="text-xs font-bold text-slate-800">Authorized Signature:</p>
-                    <p class="font-serif italic text-lg text-blue-900 mt-1">Travis J. Griffin</p>
-                    <p class="text-[11px] text-slate-500 font-medium">Director of Training & Development, Griffin Consulting</p>
-                </div>
-                <div class="text-right text-[10px] text-slate-400">
-                    <p>Griffin Consulting | Strategy | Performance | People</p>
-                    <p>Verified Secure Record</p>
-                </div>
-            </div>
-        </div>
-    `;
-    modal.classList.remove('hidden');
-};
