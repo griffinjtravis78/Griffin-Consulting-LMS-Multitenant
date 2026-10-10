@@ -77,10 +77,13 @@
                     return;
                 }
 
-                if (profile.role === 'admin') {
+                if (profile.role === 'admin' || profile.role === 'super_admin') {
                     window.location.href = './admin.html';
-                } else {
+                } else if (profile.role === 'student') {
                     window.location.href = './student.html';
+                } else {
+                    errorElement.textContent = 'User role not assigned. Contact administrator.';
+                    errorElement.classList.remove('hidden');
                 }
             });
         }
