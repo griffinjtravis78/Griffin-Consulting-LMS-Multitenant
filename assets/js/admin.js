@@ -1,8 +1,9 @@
 import { checkAuth, supabase } from './app.js';
 
 let complianceRecords = [];
+let currentAdminProfile = null;
 
-// Tab Navigation (Defined globally right away)
+// Tab Navigation
 window.switchAdminTab = function(tabName) {
     document.getElementById('admin-tab-courses').classList.add('hidden');
     document.getElementById('admin-tab-students').classList.add('hidden');
@@ -16,10 +17,14 @@ window.switchAdminTab = function(tabName) {
     document.getElementById(`tab-btn-${tabName}`).className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition';
 };
 
-// Verify admin authentication on load
+// Verify admin authentication and load tenant context on load
 (async () => {
-    const user = await checkAuth('admin');
-    if (user) {
+    currentAdminProfile = await checkAuth('admin');
+    if (currentAdminProfile) {
+        const tenantName = currentAdminProfile.tenants?.name || 'Organization';
+        const navTitle = document.querySelector('nav h1');
+        if (navTitle) navTitle.textContent = `${tenantName} LMS — Admin Portal`;
+
         loadDashboardStats();
         fetchAdminCourses();
         fetchComplianceReports();
@@ -53,7 +58,7 @@ async function fetchAdminCourses() {
         }
 
         if (!courses || courses.length === 0) {
-            container.innerHTML = `<p class="text-slate-400 text-sm italic">No courses created yet. Use the form to add your first course.</p>`;
+            container.innerHTML = `<p class="text-slate-400 text-sm italic">No courses created yet for this organization.</p>`;
             return;
         }
 
@@ -78,7 +83,6 @@ async function fetchAdminCourses() {
                         <button onclick="window.deleteCourse(${course.id})" class="px-3 py-1 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white rounded text-xs font-semibold transition">Delete Course</button>
                     </div>
 
-                    <!-- Lessons Section -->
                     <div class="border-t border-slate-800 pt-3">
                         <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Published Lessons</h4>
                         <div class="space-y-2">
@@ -93,7 +97,6 @@ async function fetchAdminCourses() {
                             `).join('') : '<p class="text-xs text-slate-500 italic">No lessons added to this course yet.</p>'}
                         </div>
 
-                        <!-- Add Lesson Inline Form (Hybrid URL & File Upload Workflow) -->
                         <form onsubmit="window.handleUploadLesson(event, ${course.id})" class="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2">
                             <input type="text" id="lesson-title-${course.id}" placeholder="Lesson Title" required class="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
                             <select id="lesson-type-${course.id}" onchange="window.toggleLessonInput(${course.id}, this.value)" class="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
@@ -116,10 +119,8 @@ async function fetchAdminCourses() {
     }
 }
 
-// Dynamic Input Toggle between URL and File Upload
 window.toggleLessonInput = function(courseId, selectedType) {
     const container = document.getElementById(`lesson-input-container-${courseId}`);
-    
     if (selectedType === 'pdf') {
         container.innerHTML = `<input type="file" id="lesson-file-${courseId}" accept=".pdf" required class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500">`;
     } else {
@@ -127,7 +128,7 @@ window.toggleLessonInput = function(courseId, selectedType) {
     }
 };
 
-// Create Course Form Handler
+// Create Course Form Handler (with tenant_id)
 document.getElementById('create-course-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = document.getElementById('course-title').value;
@@ -146,7 +147,14 @@ document.getElementById('create-course-form').addEventListener('submit', async (
         }
     }
 
-    const { error } = await supabase.from('courses').insert([{ title, description, ceu_credits, thumbnail_url }]);
+    const { error } = await supabase.from('courses').insert([{ 
+        title, 
+        description, 
+        ceu_credits, 
+        thumbnail_url,
+        tenant_id: currentAdminProfile.tenant_id 
+    }]);
+
     if (error) {
         alert('Error creating course: ' + error.message);
     } else {
@@ -171,7 +179,6 @@ window.handleUploadLesson = async function(e, courseId) {
     e.preventDefault();
     const title = document.getElementById(`lesson-title-${courseId}`).value;
     const lesson_type = document.getElementById(`lesson-type-${courseId}`).value;
-    
     let content_url = '';
 
     if (lesson_type === 'pdf') {
@@ -184,7 +191,6 @@ window.handleUploadLesson = async function(e, courseId) {
 
         const filePath = `lessons/${Date.now()}_${file.name}`;
         const { error: uploadErr } = await supabase.storage.from('lms-content').upload(filePath, file);
-        
         if (uploadErr) {
             alert('Error uploading file: ' + uploadErr.message);
             return;
@@ -206,7 +212,8 @@ window.handleUploadLesson = async function(e, courseId) {
             course_id: courseId,
             title: title,
             lesson_type: lesson_type,
-            content_url: content_url
+            content_url: content_url,
+            tenant_id: currentAdminProfile.tenant_id
         }
     ]);
 
@@ -295,6 +302,7 @@ window.addOrgRow = function() {
     container.appendChild(row);
 };
 
+// Provision Student with tenant_id linkage
 document.getElementById('provision-student-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const successBox = document.getElementById('student-success-msg');
@@ -324,7 +332,19 @@ document.getElementById('provision-student-form').addEventListener('submit', asy
     const userId = authData.user.id;
 
     const { error: profileError } = await supabase.from('profiles').upsert([{
-        id: userId, email, role: 'student', unique_identifier, first_name, last_name, phone, street_address, street_address_2, city, state, zip
+        id: userId, 
+        email, 
+        role: 'student', 
+        unique_identifier, 
+        first_name, 
+        last_name, 
+        phone, 
+        street_address, 
+        street_address_2, 
+        city, 
+        state, 
+        zip,
+        tenant_id: currentAdminProfile.tenant_id
     }]);
 
     if (profileError) {
@@ -337,7 +357,12 @@ document.getElementById('provision-student-form').addEventListener('submit', asy
     for (let row of agentRows) {
         const agent_id = row.querySelector('.agent-id-input').value;
         const agent_state = row.querySelector('.agent-state-input').value;
-        await supabase.from('student_agent_licenses').insert([{ user_id: userId, agent_id, agent_state }]);
+        await supabase.from('student_agent_licenses').insert([{ 
+            user_id: userId, 
+            agent_id, 
+            agent_state,
+            tenant_id: currentAdminProfile.tenant_id 
+        }]);
     }
 
     const orgRows = document.querySelectorAll('.org-row');
@@ -349,7 +374,17 @@ document.getElementById('provision-student-form').addEventListener('submit', asy
         const org_city = row.querySelector('.org-city-input').value;
         const org_state = row.querySelector('.org-state-input').value;
         const org_zip = row.querySelector('.org-zip-input').value;
-        await supabase.from('student_organizations').insert([{ user_id: userId, org_name, org_phone, org_street, org_street_2, org_city, org_state, org_zip }]);
+        await supabase.from('student_organizations').insert([{ 
+            user_id: userId, 
+            org_name, 
+            org_phone, 
+            org_street, 
+            org_street_2, 
+            org_city, 
+            org_state, 
+            org_zip,
+            tenant_id: currentAdminProfile.tenant_id 
+        }]);
     }
 
     successBox.textContent = `Student ${first_name} ${last_name} (ID: ${unique_identifier}) successfully provisioned!`;
@@ -359,7 +394,6 @@ document.getElementById('provision-student-form').addEventListener('submit', asy
     fetchComplianceReports();
 });
 
-// --- COMPLIANCE REPORTS LOGIC ---
 async function fetchComplianceReports() {
     const tbody = document.getElementById('compliance-report-tbody');
     const { data: completions, error } = await supabase
@@ -401,6 +435,6 @@ window.exportComplianceCSV = function() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.setAttribute('href', url);
-    a.setAttribute('download', `Griffin_Consulting_Compliance_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    a.setAttribute('download', `Compliance_Report_${new Date().toISOString().split('T')[0]}.csv`);
     a.click();
 };
