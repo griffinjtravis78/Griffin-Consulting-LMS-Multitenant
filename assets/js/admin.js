@@ -43,7 +43,8 @@ window.switchAdminTab = function(tabName) {
     if (currentAdminProfile.role === 'super_admin') {
         const tenantBtn = document.getElementById('tab-btn-tenants');
         if (tenantBtn) tenantBtn.classList.remove('hidden');
-        document.getElementById('course-tenant-assignment-container').classList.remove('hidden');
+        const courseTenantContainer = document.getElementById('course-tenant-assignment-container');
+        if (courseTenantContainer) courseTenantContainer.classList.remove('hidden');
         document.querySelector('nav h1').textContent = `Platform Super-Admin Portal — Ecosystem Control`;
         loadTenantSelectDropdowns();
     } else {
@@ -55,6 +56,8 @@ window.switchAdminTab = function(tabName) {
     fetchAdminCourses();
     fetchComplianceReports();
     loadStudentTenantDropdowns();
+    loadStudentManagementTable();
+    loadAdminManagementTable();
 })();
 
 async function loadDashboardStats() {
@@ -78,6 +81,7 @@ async function loadDashboardStats() {
 
 async function fetchAdminCourses() {
     const container = document.getElementById('admin-course-list');
+    if (!container) return;
     try {
         let query = supabase.from('courses').select('*, tenants(name)').order('created_at', { ascending: false });
         if (currentAdminProfile.role === 'admin' && currentAdminProfile.tenant_id) {
@@ -197,7 +201,7 @@ window.handleAddLesson = async function(e, courseId) {
     }
 };
 
-document.getElementById('create-course-form').addEventListener('submit', async (e) => {
+document.getElementById('create-course-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = document.getElementById('course-title').value;
     const description = document.getElementById('course-desc').value;
@@ -323,6 +327,7 @@ document.getElementById('create-tenant-form')?.addEventListener('submit', async 
 
 async function loadTenantsManagement() {
     const tbody = document.getElementById('tenants-table-tbody');
+    if (!tbody) return;
     const { data: tenants } = await supabase.from('tenants').select('*').order('created_at', { ascending: false });
 
     if (!tenants || tenants.length === 0) {
@@ -355,6 +360,7 @@ window.toggleTenantStatus = async function(tenantId, newStatus) {
 
 window.loadStudentManagementTable = async function() {
     const tbody = document.getElementById('admin-students-tbody');
+    if (!tbody) return;
     const { data: students } = await supabase
         .from('profiles')
         .select('*, student_tenants(tenants(name)), tenants(name)')
@@ -395,6 +401,7 @@ window.loadStudentManagementTable = async function() {
 
 window.loadAdminManagementTable = async function() {
     const tbody = document.getElementById('admin-admins-tbody');
+    if (!tbody) return;
     const { data: admins } = await supabase
         .from('profiles')
         .select('*, tenants(name)')
@@ -458,7 +465,7 @@ window.updateProfileStatus = async function(userId, newStatus) {
     }
 };
 
-document.getElementById('provision-student-form').addEventListener('submit', async (e) => {
+document.getElementById('provision-student-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('prov-email').value;
     const password = document.getElementById('prov-pass').value;
@@ -485,6 +492,7 @@ document.getElementById('provision-student-form').addEventListener('submit', asy
     alert('Student successfully provisioned with multi-organization access!');
     document.getElementById('provision-student-form').reset();
     loadDashboardStats();
+    loadStudentManagementTable();
 });
 
 document.getElementById('provision-tenant-admin-form')?.addEventListener('submit', async (e) => {
@@ -502,10 +510,12 @@ document.getElementById('provision-tenant-admin-form')?.addEventListener('submit
     await supabase.from('profiles').upsert([{ id: authData.user.id, email, role: 'admin', tenant_id, status: 'active' }]);
     alert('Tenant Admin successfully provisioned!');
     document.getElementById('provision-tenant-admin-form').reset();
+    loadAdminManagementTable();
 });
 
 async function fetchComplianceReports() {
     const tbody = document.getElementById('compliance-report-tbody');
+    if (!tbody) return;
     const { data: completions } = await supabase.from('student_completions').select('completed_at, courses(title, ceu_credits), profiles(first_name, last_name, unique_identifier)');
     if (!completions || completions.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500 italic">No completions recorded.</td></tr>`;
