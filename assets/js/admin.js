@@ -3,6 +3,12 @@ import { checkAuth, supabase } from './app.js';
 let complianceRecords = [];
 let currentAdminProfile = null;
 
+// Expose global sign out handler for HTML onclick bindings
+window.handleAdminSignOut = async function() {
+    await supabase.auth.signOut();
+    window.location.href = './index.html';
+};
+
 window.switchAdminTab = function(tabName) {
     document.getElementById('admin-tab-courses').classList.add('hidden');
     document.getElementById('admin-tab-students').classList.add('hidden');
@@ -29,32 +35,11 @@ window.switchAdminTab = function(tabName) {
 };
 
 (async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    currentAdminProfile = await checkAuth();
+    if (!currentAdminProfile || (currentAdminProfile.role !== 'admin' && currentAdminProfile.role !== 'super_admin')) {
         window.location.href = './index.html';
         return;
     }
-
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('*, tenants(*)')
-        .eq('id', session.user.id)
-        .single();
-
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
-        window.location.href = './index.html';
-        return;
-    }
-
-    // Check if tenant service is paused or archived
-    if (profile.tenants && profile.tenants.service_status && profile.tenants.service_status !== 'active') {
-        alert(`Service has been paused, temporarily. Please Contact your IT Dept for further information:\n${profile.tenants.technical_contact_first_name || 'IT'} ${profile.tenants.technical_contact_last_name || 'Support'} (${profile.tenants.technical_contact_email || 'support@org.gov'})`);
-        await supabase.auth.signOut();
-        window.location.href = './index.html';
-        return;
-    }
-
-    currentAdminProfile = profile;
 
     if (currentAdminProfile.role === 'super_admin') {
         const tenantBtn = document.getElementById('tab-btn-tenants');
@@ -133,6 +118,16 @@ async function fetchAdminCourses() {
         console.error(err);
     }
 }
+
+window.deleteCourse = async function(courseId) {
+    if (!confirm('Are you sure you want to delete this course?')) return;
+    const { error } = await supabase.from('courses').delete().eq('id', courseId);
+    if (error) alert('Error: ' + error.message);
+    else {
+        loadDashboardStats();
+        fetchAdminCourses();
+    }
+};
 
 // Create Course Handler
 document.getElementById('create-course-form').addEventListener('submit', async (e) => {
@@ -311,7 +306,6 @@ document.getElementById('provision-student-form').addEventListener('submit', asy
     const userId = authData.user.id;
     await supabase.from('profiles').upsert([{ id: userId, email, role: 'student', unique_identifier, first_name, last_name }]);
 
-    // Insert all selected multi-org associations
     const tenantSelects = document.querySelectorAll('.student-tenant-select');
     for (let sel of tenantSelects) {
         if (sel.value) {
@@ -349,6 +343,7 @@ async function fetchComplianceReports() {
         tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500 italic">No completions recorded.</td></tr>`;
         return;
     }
+    complianceRecords = completions;
     tbody.innerHTML = completions.map(c => `
         <tr class="hover:bg-slate-900/50">
             <td class="p-3">${c.profiles?.first_name || ''}</td>
@@ -360,3 +355,20 @@ async function fetchComplianceReports() {
         </tr>
     `).join('');
 }
+
+window.exportComplianceCSV = function() {
+    if (!complianceRecords || complianceRecords.length === 0) {
+        alert('No data to export.');
+        return;
+    }
+    let csv = 'First Name,Last Name,Student ID,Course Completed,CEUs,Date Completed\n';
+    complianceRecords.forEach(c => {
+        csv += `"${c.profiles?.first_name || ''}","${c.profiles?.last_name || ''}","${c.profiles?.unique_identifier || ''}","${c.courses?.title || ''}","${c.courses?.ceu_credits || 0}","${c.completed_at}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `Compliance_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    a.click();
+};
