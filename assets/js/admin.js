@@ -276,104 +276,27 @@ window.addStudentTenantRow = async function() {
     container.appendChild(row);
 };
 
-document.getElementById('create-tenant-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('t-name').value;
-    const slug = document.getElementById('t-slug').value.trim().toLowerCase().replace(/\s+/g, '-');
-    const logoFile = document.getElementById('t-logo').files[0];
-
-    let logo_url = null;
-    if (logoFile) {
-        const path = `logos/${Date.now()}_${logoFile.name}`;
-        const { error: upErr } = await supabase.storage.from('lms-content').upload(path, logoFile);
-        if (!upErr) {
-            const { data } = supabase.storage.from('lms-content').getPublicUrl(path);
-            logo_url = data.publicUrl;
-        }
-    }
-
-    const payload = {
-        name,
-        slug,
-        logo_url,
-        street_address: document.getElementById('t-street').value,
-        street_address_2: document.getElementById('t-street2').value,
-        city: document.getElementById('t-city').value,
-        state: document.getElementById('t-state').value,
-        zip: document.getElementById('t-zip').value,
-        phone: document.getElementById('t-phone').value,
-        website: document.getElementById('t-website').value,
-        training_contact_first_name: document.getElementById('t-train-first').value,
-        training_contact_last_name: document.getElementById('t-train-last').value,
-        training_contact_email: document.getElementById('t-train-email').value,
-        training_contact_phone: document.getElementById('t-train-phone').value,
-        technical_contact_first_name: document.getElementById('t-tech-first').value,
-        technical_contact_last_name: document.getElementById('t-tech-last').value,
-        technical_contact_email: document.getElementById('t-tech-email').value,
-        technical_contact_phone: document.getElementById('t-tech-phone').value,
-        issue_link: document.getElementById('t-issuelink').value,
-        service_status: 'active'
-    };
-
-    const { error } = await supabase.from('tenants').insert([payload]);
-    if (error) {
-        alert('Error: ' + error.message);
-    } else {
-        alert('Tenant profile successfully created!');
-        document.getElementById('create-tenant-form').reset();
-        loadTenantsManagement();
-    }
-});
-
-async function loadTenantsManagement() {
-    const tbody = document.getElementById('tenants-table-tbody');
-    if (!tbody) return;
-    const { data: tenants } = await supabase.from('tenants').select('*').order('created_at', { ascending: false });
-
-    if (!tenants || tenants.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500 italic">No tenants found.</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = tenants.map(t => `
-        <tr class="hover:bg-slate-950/50">
-            <td class="p-3 font-semibold text-purple-300">${t.name}</td>
-            <td class="p-3 font-mono text-slate-400">${t.slug}</td>
-            <td class="p-3">
-                <span class="px-2 py-0.5 rounded text-xs ${t.service_status === 'active' ? 'bg-emerald-600/20 text-emerald-400' : t.service_status === 'paused' ? 'bg-amber-600/20 text-amber-400' : 'bg-red-600/20 text-red-400'}">${t.service_status.toUpperCase()}</span>
-            </td>
-            <td class="p-3 flex gap-2">
-                <button onclick="window.toggleTenantStatus('${t.id}', '${t.service_status === 'active' ? 'paused' : 'active'}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded">${t.service_status === 'active' ? 'Pause' : 'Activate'}</button>
-                <button onclick="window.toggleTenantStatus('${t.id}', 'archived')" class="px-2 py-1 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white text-xs rounded">Archive</button>
-            </td>
-        </tr>
-    `).join('');
-
-    loadTenantSelectDropdowns();
-}
-
-window.toggleTenantStatus = async function(tenantId, newStatus) {
-    const { error } = await supabase.from('tenants').update({ service_status: newStatus }).eq('id', tenantId);
-    if (error) alert('Error updating status: ' + error.message);
-    else loadTenantsManagement();
-};
-
 window.loadStudentManagementTable = async function() {
     const tbody = document.getElementById('admin-students-tbody');
     if (!tbody) return;
-    const { data: students } = await supabase
+    
+    // Robust query for students
+    const { data: students, error } = await supabase
         .from('profiles')
-        .select('*, student_tenants(tenants(name)), tenants(name)')
+        .select('*')
         .eq('role', 'student')
         .order('created_at', { ascending: false });
 
-    if (!students || students.length === 0) {
+    if (error || !students || students.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500 italic">No students found.</td></tr>`;
         return;
     }
 
+    const { data: allStudentTenants } = await supabase.from('student_tenants').select('user_id, tenants(name)');
+
     tbody.innerHTML = students.map(s => {
-        const orgNames = s.student_tenants?.map(st => st.tenants?.name).join(', ') || s.tenants?.name || 'Unassigned';
+        const studentOrgs = allStudentTenants ? allStudentTenants.filter(st => st.user_id === s.id).map(st => st.tenants?.name).filter(Boolean) : [];
+        const orgNames = studentOrgs.length > 0 ? studentOrgs.join(', ') : 'Unassigned';
         const status = s.status || 'active';
         return `
             <tr class="hover:bg-slate-950/50">
@@ -512,6 +435,39 @@ document.getElementById('provision-tenant-admin-form')?.addEventListener('submit
     document.getElementById('provision-tenant-admin-form').reset();
     loadAdminManagementTable();
 });
+
+async function loadTenantsManagement() {
+    const tbody = document.getElementById('tenants-table-tbody');
+    if (!tbody) return;
+    const { data: tenants } = await supabase.from('tenants').select('*').order('created_at', { ascending: false });
+
+    if (!tenants || tenants.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500 italic">No tenants found.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = tenants.map(t => `
+        <tr class="hover:bg-slate-950/50">
+            <td class="p-3 font-semibold text-purple-300">${t.name}</td>
+            <td class="p-3 font-mono text-slate-400">${t.slug}</td>
+            <td class="p-3">
+                <span class="px-2 py-0.5 rounded text-xs ${t.service_status === 'active' ? 'bg-emerald-600/20 text-emerald-400' : t.service_status === 'paused' ? 'bg-amber-600/20 text-amber-400' : 'bg-red-600/20 text-red-400'}">${t.service_status.toUpperCase()}</span>
+            </td>
+            <td class="p-3 flex gap-2">
+                <button onclick="window.toggleTenantStatus('${t.id}', '${t.service_status === 'active' ? 'paused' : 'active'}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded">${t.service_status === 'active' ? 'Pause' : 'Activate'}</button>
+                <button onclick="window.toggleTenantStatus('${t.id}', 'archived')" class="px-2 py-1 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white text-xs rounded">Archive</button>
+            </td>
+        </tr>
+    `).join('');
+
+    loadTenantSelectDropdowns();
+}
+
+window.toggleTenantSizeStatus = async function(tenantId, newStatus) {
+    const { error } = await supabase.from('tenants').update({ service_status: newStatus }).eq('id', tenantId);
+    if (error) alert('Error updating status: ' + error.message);
+    else loadTenantsManagement();
+};
 
 async function fetchComplianceReports() {
     const tbody = document.getElementById('compliance-report-tbody');
