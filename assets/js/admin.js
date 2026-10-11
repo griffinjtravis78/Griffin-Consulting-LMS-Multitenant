@@ -27,8 +27,11 @@ window.switchAdminTab = function(tabName) {
     document.getElementById(`admin-tab-${tabName}`).classList.remove('hidden');
     
     if (tabName === 'tenants') {
-        tenantBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-purple-600 text-white transition';
+        if (tenantBtn) tenantBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-purple-600 text-white transition';
         loadTenantsManagement();
+    } else if (tabName === 'students') {
+        document.getElementById(`tab-btn-${tabName}`).className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition';
+        loadStudentTenantDropdowns(); // <-- Instantly populates organization dropdown when switching to tab
     } else {
         document.getElementById(`tab-btn-${tabName}`).className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition';
     }
@@ -50,12 +53,12 @@ window.switchAdminTab = function(tabName) {
     } else {
         const tenantName = currentAdminProfile.tenants?.name || 'Organization';
         document.querySelector('nav h1').textContent = `${tenantName} LMS — Admin Portal`;
-        loadStudentTenantDropdowns();
     }
 
     loadDashboardStats();
     fetchAdminCourses();
     fetchComplianceReports();
+    loadStudentTenantDropdowns();
 })();
 
 async function loadDashboardStats() {
@@ -109,7 +112,35 @@ async function fetchAdminCourses() {
                                 </div>
                             </div>
                         </div>
-                        <button onclick="window.deleteCourse(${course.id})" class="px-3 py-1 bg-red-600/20 text-red-400 rounded text-xs">Delete</button>
+                        <button onclick="window.deleteCourse(${course.id})" class="px-3 py-1 bg-red-600/20 text-red-400 rounded text-xs">Delete Course</button>
+                    </div>
+
+                    <!-- Course Lessons & SCORM / Media Uploader Section -->
+                    <div class="border-t border-slate-800 pt-4 space-y-3">
+                        <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Course Modules & SCORM Packages</h4>
+                        <div class="space-y-2">
+                            ${courseLessons.length > 0 ? courseLessons.map(l => `
+                                <div class="flex justify-between items-center bg-slate-950 p-2.5 rounded border border-slate-800 text-xs">
+                                    <span class="text-slate-200">▶ [${l.lesson_type.toUpperCase()}]${l.title}</span>
+                                    <button onclick="window.deleteLesson(${l.id})" class="text-red-400 hover:text-red-300">Remove</button>
+                                </div>
+                            `).join('') : '<p class="text-xs text-slate-500 italic">No modules added to this course yet.</p>'}
+                        </div>
+
+                        <!-- Add Lesson Form -->
+                        <form onsubmit="window.handleAddLesson(event, ${course.id})" class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-3 mt-3">
+                            <p class="text-xs font-bold text-blue-400">+ Add Lesson or SCORM Module</p>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <input type="text" placeholder="Module Title" required class="lesson-title-input px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                                <select required class="lesson-type-select px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                                    <option value="scorm">SCORM / HTML5 Zip</option>
+                                    <option value="video">Video (MP4)</option>
+                                    <option value="pdf">PDF Document</option>
+                                </select>
+                                <input type="file" required class="lesson-file-input text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-blue-600 file:text-white">
+                            </div>
+                            <button type="submit" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold transition">Upload & Attach Module</button>
+                        </form>
                     </div>
                 </div>
             `;
@@ -124,6 +155,49 @@ window.deleteCourse = async function(courseId) {
     const { error } = await supabase.from('courses').delete().eq('id', courseId);
     if (error) alert('Error: ' + error.message);
     else {
+        loadDashboardStats();
+        fetchAdminCourses();
+    }
+};
+
+window.deleteLesson = async function(lessonId) {
+    const { error } = await supabase.from('lessons').delete().eq('id', lessonId);
+    if (error) alert('Error: ' + error.message);
+    else fetchAdminCourses();
+};
+
+window.handleAddLesson = async function(e, courseId) {
+    e.preventDefault();
+    const form = e.target;
+    const title = form.querySelector('.lesson-title-input').value;
+    const lesson_type = form.querySelector('.lesson-type-select').value;
+    const file = form.querySelector('.lesson-file-input').files[0];
+
+    if (!file) {
+        alert('Please select a file to upload.');
+        return;
+    }
+
+    const path = `lessons/${Date.now()}_${file.name}`;
+    const { error: upErr } = await supabase.storage.from('lms-content').upload(path, file);
+    if (upErr) {
+        alert('Upload Error: ' + upErr.message);
+        return;
+    }
+
+    const { data } = supabase.storage.from('lms-content').getPublicUrl(path);
+    const content_url = data.publicUrl;
+
+    const { error: insErr } = await supabase.from('lessons').insert([{
+        course_id: courseId,
+        title,
+        lesson_type,
+        content_url
+    }]);
+
+    if (insErr) {
+        alert('Database Error: ' + insErr.message);
+    } else {
         loadDashboardStats();
         fetchAdminCourses();
     }
