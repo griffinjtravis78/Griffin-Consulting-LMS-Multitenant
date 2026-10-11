@@ -2,18 +2,88 @@ import { checkAuth, supabase } from './app.js';
 
 let allCourses = [];
 let currentStudentProfile = null;
+let currentStudentTenants = [];
+let activeTenantId = null;
 
 (async () => {
     currentStudentProfile = await checkAuth('student');
-    if (currentStudentProfile) {
-        const tenantName = currentStudentProfile.tenants?.name || 'Organization';
-        const navTitle = document.querySelector('nav h1');
-        if (navTitle) navTitle.textContent = `${tenantName} LMS — Student Portal`;
+    if (!currentStudentProfile) return;
 
-        fetchStudentCourses();
-        loadStudentProfileData();
+    // Fetch multi-org associations from student_tenants junction table
+    const { data: studentTenants, error } = await supabase
+        .from('student_tenants')
+        .select('tenants(*)')
+        .eq('user_id', currentStudentProfile.id);
+
+    if (error || !studentTenants || studentTenants.length === 0) {
+        // Fallback to profiles.tenant_id if junction table entry is missing
+        if (currentStudentProfile.tenants) {
+            currentStudentTenants = [{ tenants: currentStudentProfile.tenants }];
+        } else {
+            alert('No organization assigned to this account.');
+            await supabase.auth.signOut();
+            window.location.href = './index.html';
+            return;
+        }
+    } else {
+        currentStudentTenants = studentTenants;
     }
+
+    // Determine active tenant from session or default to first
+    activeTenantId = sessionStorage.getItem('active_tenant_id');
+    let currentTenantObj = currentStudentTenants.map(st => st.tenants).find(t => t.id === activeTenantId);
+
+    if (!currentTenantObj) {
+        currentTenantObj = currentStudentTenants[0].tenants;
+        activeTenantId = currentTenantObj.id;
+        sessionStorage.setItem('active_tenant_id', activeTenantId);
+    }
+
+    // Service pause verification modal/alert intercept
+    if (currentTenantObj.service_status && currentTenantObj.service_status !== 'active') {
+        alert(`Service has been paused, temporarily. Please Contact your IT Dept for further information:\n${currentTenantObj.technical_contact_first_name || 'IT'} ${currentTenantObj.technical_contact_last_name || 'Support'} (${currentTenantObj.technical_contact_email || 'support@org.gov'})`);
+        await supabase.auth.signOut();
+        window.location.href = './index.html';
+        return;
+    }
+
+    // Update Navigation Header Title and Branding Logo
+    const tenantName = currentTenantObj.name || 'Organization';
+    const navTitle = document.querySelector('nav h1');
+    if (navTitle) navTitle.textContent = `${tenantName} LMS — Student Portal`;
+
+    const logoImg = document.getElementById('tenant-logo-img');
+    if (logoImg && currentTenantObj.logo_url) {
+        logoImg.src = currentTenantObj.logo_url;
+        logoImg.classList.remove('hidden');
+    }
+
+    // Render support ticket link if configured
+    const ticketLink = document.getElementById('ticket-support-link');
+    if (ticketLink && currentTenantObj.issue_link) {
+        ticketLink.href = currentTenantObj.issue_link;
+        ticketLink.classList.remove('hidden');
+    }
+
+    // Render multi-org dropdown selector if assigned to multiple organizations
+    if (currentStudentTenants.length > 1) {
+        const switcher = document.getElementById('student-org-switcher');
+        if (switcher) {
+            switcher.innerHTML = currentStudentTenants.map(st => 
+                `<option value="${st.tenants.id}" ${st.tenants.id === activeTenantId ? 'selected' : ''}>${st.tenants.name}</option>`
+            ).join('');
+            switcher.classList.remove('hidden');
+        }
+    }
+
+    fetchStudentCourses(activeTenantId);
+    loadStudentProfileData();
 })();
+
+window.switchStudentOrg = function(tenantId) {
+    sessionStorage.setItem('active_tenant_id', tenantId);
+    location.reload();
+};
 
 // Tab Navigation for Student Portal
 window.switchStudentTab = function(tabName) {
@@ -31,10 +101,15 @@ window.switchStudentTab = function(tabName) {
     }
 };
 
-async function fetchStudentCourses() {
+async function fetchStudentCourses(tenantId) {
     const container = document.getElementById('student-course-list');
     try {
-        const { data: courses, error } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
+        // Fetch courses matching tenant_id or global (tenant_id IS NULL)
+        const { data: courses, error } = await supabase
+            .from('courses')
+            .select('*')
+            .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
+            .order('created_at', { ascending: false });
 
         if (error) {
             container.innerHTML = `<p class="text-red-400 text-sm">Error: ${error.message}</p>`;
@@ -42,7 +117,7 @@ async function fetchStudentCourses() {
         }
 
         if (!courses || courses.length === 0) {
-            container.innerHTML = `<p class="text-slate-400 text-sm">No courses available at this time.</p>`;
+            container.innerHTML = `<p class="text-slate-400 text-sm">No courses available for this organization at this time.</p>`;
             return;
         }
 
@@ -114,7 +189,7 @@ window.selectCourse = async function(courseId) {
             ${!isCompleted ? `<button onclick="window.markCourseComplete(${course.id})" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition">Mark Course Completed</button>` : `<span class="text-xs text-emerald-400 font-semibold">✓ Completed & Recorded to Transcript</span>`}
         </div>
     `;
-}
+};
 
 window.playLesson = function(type, url, title) {
     const box = document.getElementById('media-player-box');
@@ -148,13 +223,12 @@ window.playLesson = function(type, url, title) {
     `;
 };
 
-// Course Completion with tenant_id tagging
 window.markCourseComplete = async function(courseId) {
     const { error } = await supabase.from('student_completions').insert([{
         user_id: currentStudentProfile.id,
         course_id: courseId,
         status: 'Completed / Verified',
-        tenant_id: currentStudentProfile.tenant_id
+        tenant_id: activeTenantId
     }]);
 
     if (error) {
@@ -179,27 +253,31 @@ async function loadStudentProfileData() {
 
     const { data: licenses } = await supabase.from('student_agent_licenses').select('*').eq('user_id', currentStudentProfile.id);
     const agentContainer = document.getElementById('profile-agent-list');
-    if (licenses && licenses.length > 0) {
-        agentContainer.innerHTML = licenses.map(l => `
-            <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 flex justify-between items-center text-xs">
-                <span><strong>Agent ID:</strong> ${l.agent_id} | <strong>State:</strong> ${l.agent_state}</span>
-            </div>
-        `).join('');
-    } else {
-        agentContainer.innerHTML = `<p class="text-xs text-slate-500 italic">No agent licenses recorded.</p>`;
+    if (agentContainer) {
+        if (licenses && licenses.length > 0) {
+            agentContainer.innerHTML = licenses.map(l => `
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 flex justify-between items-center text-xs">
+                    <span><strong>Agent ID:</strong> ${l.agent_id} | <strong>State:</strong> ${l.agent_state}</span>
+                </div>
+            `).join('');
+        } else {
+            agentContainer.innerHTML = `<p class="text-xs text-slate-500 italic">No agent licenses recorded.</p>`;
+        }
     }
 
     const { data: orgs } = await supabase.from('student_organizations').select('*').eq('user_id', currentStudentProfile.id);
     const orgContainer = document.getElementById('profile-org-list');
-    if (orgs && orgs.length > 0) {
-        orgContainer.innerHTML = orgs.map(o => `
-            <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 text-xs space-y-1">
-                <p><strong>Organization:</strong> ${o.org_name} (${o.org_phone || 'No Phone'})</p>
-                <p class="text-slate-400">Address: ${o.org_street} ${o.org_street_2 ? o.org_street_2 + ', ' : ''}${o.org_city}, ${o.org_state} ${o.org_zip}</p>
-            </div>
-        `).join('');
-    } else {
-        orgContainer.innerHTML = `<p class="text-xs text-slate-500 italic">No organization records found.</p>`;
+    if (orgContainer) {
+        if (orgs && orgs.length > 0) {
+            orgContainer.innerHTML = orgs.map(o => `
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 text-xs space-y-1">
+                    <p><strong>Organization:</strong> ${o.org_name} (${o.org_phone || 'No Phone'})</p>
+                    <p class="text-slate-400">Address: ${o.org_street} ${o.org_street_2 ? o.org_street_2 + ', ' : ''}${o.org_city}, ${o.org_state} ${o.org_zip}</p>
+                </div>
+            `).join('');
+        } else {
+            orgContainer.innerHTML = `<p class="text-xs text-slate-500 italic">No organization records found.</p>`;
+        }
     }
 
     const { data: auditLogs } = await supabase
@@ -209,25 +287,27 @@ async function loadStudentProfileData() {
         .order('changed_at', { ascending: false });
 
     const auditTbody = document.getElementById('audit-ledger-tbody');
-    if (auditLogs && auditLogs.length > 0) {
-        auditTbody.innerHTML = auditLogs.map(log => `
-            <tr class="hover:bg-slate-900/50">
-                <td class="p-3 text-slate-400">${new Date(log.changed_at).toLocaleString()}</td>
-                <td class="p-3 text-blue-400">${log.changed_by || 'System / Self'}</td>
-                <td class="p-3 text-slate-300"><pre class="text-[11px] bg-slate-900 p-2 rounded max-h-24 overflow-y-auto">${JSON.stringify(log.old_data, null, 2)}</pre></td>
-            </tr>
-        `).join('');
-    } else {
-        auditTbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-500 italic">No audit history recorded yet.</td></tr>`;
+    if (auditTbody) {
+        if (auditLogs && auditLogs.length > 0) {
+            auditTbody.innerHTML = auditLogs.map(log => `
+                <tr class="hover:bg-slate-900/50">
+                    <td class="p-3 text-slate-400">${new Date(log.changed_at).toLocaleString()}</td>
+                    <td class="p-3 text-blue-400">${log.changed_by || 'System / Self'}</td>
+                    <td class="p-3 text-slate-300"><pre class="text-[11px] bg-slate-900 p-2 rounded max-h-24 overflow-y-auto">${JSON.stringify(log.old_data, null, 2)}</pre></td>
+                </tr>
+            `).join('');
+        } else {
+            auditTbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-500 italic">No audit history recorded yet.</td></tr>`;
+        }
     }
 }
 
-document.getElementById('update-profile-form').addEventListener('submit', async (e) => {
+document.getElementById('update-profile-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const successBox = document.getElementById('profile-success-msg');
     const errorBox = document.getElementById('profile-error-msg');
-    successBox.classList.add('hidden');
-    errorBox.classList.add('hidden');
+    if (successBox) successBox.classList.add('hidden');
+    if (errorBox) errorBox.classList.add('hidden');
 
     const first_name = document.getElementById('prof-firstname').value;
     const last_name = document.getElementById('prof-lastname').value;
@@ -243,13 +323,17 @@ document.getElementById('update-profile-form').addEventListener('submit', async 
     }).eq('id', currentStudentProfile.id);
 
     if (error) {
-        errorBox.textContent = 'Error updating profile: ' + error.message;
-        errorBox.classList.remove('hidden');
+        if (errorBox) {
+            errorBox.textContent = 'Error updating profile: ' + error.message;
+            errorBox.classList.remove('hidden');
+        }
     } else {
-        successBox.textContent = 'Profile successfully updated!';
-        successBox.classList.remove('hidden');
+        if (successBox) {
+            successBox.textContent = 'Profile successfully updated!';
+            successBox.classList.remove('hidden');
+        }
         
-        const { data: updated } = await supabase.from('profiles').select('*, tenants(name, slug)').eq('id', currentStudentProfile.id).single();
+        const { data: updated } = await supabase.from('profiles').select('*, tenants(*)').eq('id', currentStudentProfile.id).single();
         if (updated) currentStudentProfile = updated;
         
         loadStudentProfileData();
