@@ -3,9 +3,15 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = 'https://affszlowgizrxzfzmavp.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_1Z-1jXB-qrmY8iJdzW2ecg_CxL0Hv-a';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+    }
+});
 
-// Global Auth Guard function with Tenant Context
+// Global Auth Guard function with Tenant Context and Service Pause Intercept
 export async function checkAuth(requiredRole) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -15,11 +21,19 @@ export async function checkAuth(requiredRole) {
 
     const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('*, tenants(name, slug)')
+        .select('*, tenants(*)')
         .eq('id', session.user.id)
         .single();
 
     if (profileError || !profile || (requiredRole && profile.role !== requiredRole)) {
+        window.location.href = './index.html';
+        return null;
+    }
+
+    // Check if user's assigned tenant service is paused or archived (for single-tenant / admin contexts)
+    if (profile.tenants && profile.tenants.service_status && profile.tenants.service_status !== 'active') {
+        alert(`Service has been paused, temporarily. Please Contact your IT Dept for further information:\n${profile.tenants.technical_contact_first_name || 'IT'} ${profile.tenants.technical_contact_last_name || 'Support'} (${profile.tenants.technical_contact_email || 'support@org.gov'})`);
+        await supabase.auth.signOut();
         window.location.href = './index.html';
         return null;
     }
