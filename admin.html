@@ -62,7 +62,6 @@
                             <label class="block text-xs font-medium text-slate-400 mb-1">CEU Credits</label>
                             <input type="number" step="0.25" id="course-ceu" value="0.00" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
                         </div>
-                        <!-- Granular Course Tenant Assignment -->
                         <div id="course-tenant-assignment-container" class="hidden">
                             <label class="block text-xs font-medium text-purple-400 mb-1">Assign to Tenant Organization</label>
                             <select id="course-tenant-id" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
@@ -89,20 +88,24 @@
         <!-- TAB 2: PROVISION STUDENT -->
         <div id="admin-tab-students" class="hidden space-y-6">
             <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl max-w-4xl mx-auto space-y-6">
-                <div class="border-b border-slate-800 pb-3">
-                    <h2 class="text-lg font-bold text-blue-400">Provision New Student Participant</h2>
-                    <p class="text-xs text-slate-400 mt-1">Create user credentials, agent licenses, and multi-organization associations.</p>
+                <div class="border-b border-slate-800 pb-3 flex justify-between items-center">
+                    <div>
+                        <h2 id="provision-student-heading" class="text-lg font-bold text-blue-400">Provision New Student Participant</h2>
+                        <p class="text-xs text-slate-400 mt-1">Create user credentials, agent licenses, and multi-organization associations.</p>
+                    </div>
+                    <button type="button" id="cancel-student-edit" onclick="window.resetStudentForm()" class="hidden px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs">Cancel Edit</button>
                 </div>
 
                 <form id="provision-student-form" class="space-y-6">
+                    <input type="hidden" id="edit-student-id">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-slate-400 mb-1">Email Address</label>
                             <input type="email" id="prov-email" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
                         </div>
-                        <div>
+                        <div id="prov-pass-container">
                             <label class="block text-xs font-medium text-slate-400 mb-1">Temporary Password</label>
-                            <input type="password" id="prov-pass" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
+                            <input type="password" id="prov-pass" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
                         </div>
                     </div>
 
@@ -121,7 +124,6 @@
                         </div>
                     </div>
 
-                    <!-- Multi-Organization Association Selector -->
                     <div class="space-y-3 border-t border-slate-800 pt-4">
                         <div class="flex justify-between items-center">
                             <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Associated Tenant Organizations</h3>
@@ -136,7 +138,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Provision Student Participant</button>
+                    <button type="submit" id="student-submit-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Provision Student Participant</button>
                 </form>
             </div>
         </div>
@@ -221,11 +223,14 @@
         <!-- TAB 4: PLATFORM TENANTS (SUPER ADMIN ONLY) -->
         <div id="admin-tab-tenants" class="hidden space-y-8">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Comprehensive Tenant Profile & Creation Form -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
-                    <h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Create Full Tenant Profile</h2>
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h2 id="tenant-form-heading" class="text-lg font-bold text-purple-400">Create Full Tenant Profile</h2>
+                        <button type="button" id="cancel-tenant-edit" onclick="window.resetTenantForm()" class="hidden px-2 py-1 bg-slate-800 text-slate-300 rounded text-xs">Cancel Edit</button>
+                    </div>
                     
                     <form id="create-tenant-form" class="space-y-4">
+                        <input type="hidden" id="edit-tenant-id">
                         <div>
                             <label class="block text-xs font-medium text-slate-400 mb-1">Organization Name</label>
                             <input type="text" id="t-name" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
@@ -283,7 +288,7 @@
                             <input type="url" id="t-issuelink" placeholder="https://ticketing.system/submit" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
                         </div>
 
-                        <button type="submit" class="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Save Organization Profile</button>
+                        <button type="submit" id="tenant-submit-btn" class="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Save Organization Profile</button>
                     </form>
 
                     <!-- Provision Tenant Admin -->
@@ -319,7 +324,7 @@
                                     <th class="p-3">Organization Name</th>
                                     <th class="p-3">Slug</th>
                                     <th class="p-3">Service Status</th>
-                                    <th class="p-3">Actions (Pause / Archive)</th>
+                                    <th class="p-3 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="tenants-table-tbody" class="divide-y divide-slate-800">
