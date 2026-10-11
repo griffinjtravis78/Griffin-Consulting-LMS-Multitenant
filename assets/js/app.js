@@ -4,9 +4,14 @@ const SUPABASE_URL = 'https://affszlowgizrxzfzmavp.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_1Z-1jXB-qrmY8iJdzW2ecg_CxL0Hv-a';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+    }
 });
 
+// Global Auth Guard function with Tenant Context and Service Pause Intercept
 export async function checkAuth(requiredRole) {
     try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -36,8 +41,9 @@ export async function checkAuth(requiredRole) {
             }
         }
 
-        if (profile.tenants?.service_status && profile.tenants.service_status !== 'active') {
-            alert(`Service suspended. Contact IT: ${profile.tenants.technical_contact_first_name || 'Support'} (${profile.tenants.technical_contact_email || 'support@org.gov'})`);
+        // Check if user's assigned tenant service is paused or archived
+        if (profile.tenants && profile.tenants.service_status && profile.tenants.service_status !== 'active') {
+            alert(`Service has been paused, temporarily. Please Contact your IT Dept for further information:\n${profile.tenants.technical_contact_first_name || 'IT'} ${profile.tenants.technical_contact_last_name || 'Support'} (${profile.tenants.technical_contact_email || 'support@org.gov'})`);
             await supabase.auth.signOut();
             window.location.href = './index.html';
             return null;
@@ -45,32 +51,47 @@ export async function checkAuth(requiredRole) {
 
         return profile;
     } catch (err) {
-        console.error('Auth guard error:', err);
+        console.error('Auth guard exception:', err);
         window.location.href = './index.html';
         return null;
     }
 }
 
-window.openLegalModal = function(type) {
-    let title = '', body = '';
-    switch(type) {
+// Global Legal Disclaimers Modal Handler
+window.openLegalModal = function(policyType) {
+    let title = '';
+    let body = '';
+
+    switch(policyType) {
         case 'terms':
-            title = 'Terms of Service & Acceptable Use Policy';
-            body = `<p class="mb-3">Welcome to Griffin Consulting Training Institute. By accessing our platform, you agree to these Terms of Service. Account sharing and credential redistribution are strictly prohibited and grounds for immediate termination.</p>`;
+            title = '1. Terms of Service & Acceptable Use Policy';
+            body = `<p class="mb-3">Welcome to Griffin Consulting Training Institute. By accessing, registering for, or using our platform, you agree to comply with and be bound by these Terms of Service.</p>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Account Security:</strong> Users are responsible for maintaining the confidentiality of their account credentials. Account sharing is strictly prohibited.</li>
+                        <li><strong>Acceptable Use:</strong> Users agree not to misuse the platform, engage in unauthorized sharing of course credentials, or upload malicious code.</li>
+                        <li><strong>Service Availability:</strong> We strive to maintain high availability but do not guarantee uninterrupted access.</li>
+                    </ul>`;
             break;
         case 'privacy':
-            title = 'Privacy Policy (GDPR / CCPA Compliant)';
-            body = `<p class="mb-3">We protect your personal data in compliance with GDPR and CCPA standards. You retain full rights to data export, privacy review, and account deletion upon formal request.</p>`;
+            title = '2. Privacy Policy (GDPR / CCPA Compliant)';
+            body = `<p class="mb-3">Griffin Consulting Training Institute respects your privacy and is committed to protecting your personal data in accordance with GDPR and CCPA standards.</p>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Data Collection:</strong> We collect personal information provided during registration, course enrollment, and progress tracking.</li>
+                        <li><strong>Use of Data:</strong> Data is used solely to deliver training content, track certification progress, and improve platform functionality.</li>
+                        <li><strong>User Rights:</strong> You retain the right to data export, review, and account deletion upon formal request.</li>
+                    </ul>`;
             break;
-        case 'disclaimer':
-            title = 'Legal, Earnings & Professional Disclaimers';
-            body = `<p class="mb-3"><strong>No Guarantee of Outcomes:</strong> Courses do not guarantee employment, promotions, salary increases, or formal professional licensure unless explicitly contracted.</p>
-                    <p class="mb-3"><strong>Professional Services:</strong> Content is for educational purposes only and does not constitute formal legal, financial, or therapeutic advice.</p>
-                    <p class="mb-3"><strong>Earnings Disclaimer:</strong> Business case studies and financial examples are illustrative and do not guarantee financial returns.</p>`;
+        case 'ip':
+            title = '3. Intellectual Property (IP) & Copyright Disclaimer';
+            body = `<p class="mb-3">All hosted content—including text, video modules, facilitator guides, and software tools—is the exclusive property of Griffin Consulting Training Institute or its content licensors.</p>`;
+            break;
+        case 'outcomes':
+            title = '4. Educational & Professional Outcome Disclaimer';
+            body = `<p class="mb-3">Courses are designed for professional development and capacity building without guaranteed employment outcomes, promotions, or salary increases unless explicitly contracted.</p>`;
             break;
         case 'accessibility':
-            title = 'Accessibility Statement (WCAG 2.1 AA)';
-            body = `<p class="mb-3">Griffin Consulting Training Institute is committed to digital accessibility, adhering strictly to WCAG 2.1 Level AA standards across all portals, form inputs, and navigation pathways.</p>`;
+            title = '5. Accessibility & WCAG 2.1 AA Compliance';
+            body = `<p class="mb-3">Committed to digital accessibility and WCAG 2.1 Level AA standards compliance across all user interfaces and documents.</p>`;
             break;
     }
 
@@ -78,16 +99,23 @@ window.openLegalModal = function(type) {
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'legal-modal';
-        modal.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4';
+        modal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4';
         modal.innerHTML = `
-            <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-6 text-slate-100 shadow-2xl space-y-4">
-                <h3 id="m-title" class="text-lg font-bold text-blue-400"></h3>
-                <div id="m-body" class="text-xs text-slate-300 max-h-[60vh] overflow-y-auto space-y-2"></div>
-                <div class="text-right"><button onclick="document.getElementById('legal-modal').classList.add('hidden')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold focus:ring-2 focus:ring-blue-500">Close</button></div>
-            </div>`;
+            <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl">
+                <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+                    <h3 id="modal-title" class="text-lg font-bold text-blue-400"></h3>
+                    <button onclick="document.getElementById('legal-modal').classList.add('hidden')" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+                </div>
+                <div id="modal-body" class="p-6 overflow-y-auto text-slate-300 text-sm space-y-4"></div>
+                <div class="p-4 border-t border-slate-700 text-right">
+                    <button onclick="document.getElementById('legal-modal').classList.add('hidden')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500">Close</button>
+                </div>
+            </div>
+        `;
         document.body.appendChild(modal);
     }
-    document.getElementById('m-title').textContent = title;
-    document.getElementById('m-body').innerHTML = body;
+
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').innerHTML = body;
     modal.classList.remove('hidden');
 };
