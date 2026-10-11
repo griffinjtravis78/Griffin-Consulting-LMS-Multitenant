@@ -63,7 +63,10 @@ window.selectCourse = async (courseId) => {
     if (!course) return;
     const { data: comp } = await supabase.from('student_completions').select('*').eq('user_id', currentStudentProfile.id).eq('course_id', courseId).maybeSingle();
 
-    document.getElementById('lesson-viewer-container').innerHTML = `
+    const viewer = document.getElementById('lesson-viewer-container');
+    if (!viewer) return;
+
+    viewer.innerHTML = `
         <div class="bg-slate-900 border border-slate-700 rounded-xl p-6 space-y-6">
             <div class="flex justify-between items-start">
                 <div><h3 class="text-lg font-bold text-blue-400">${course.title}</h3><p class="text-xs text-slate-400 mt-1">${course.description || ''}</p></div>
@@ -129,32 +132,41 @@ window.generateCertificate = async (courseId) => {
 function loadStudentProfileView() {
     const container = document.getElementById('student-tab-profile');
     if (!container) return;
+    const tenantObj = currentStudentTenants.find(t => t.tenants.id === activeTenantId)?.tenants;
+
     container.innerHTML = `
         <div class="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-2xl mx-auto space-y-6">
             <h2 class="text-lg font-bold text-blue-400">Student Profile & Credentials</h2>
             <form id="student-profile-form" class="space-y-4 text-xs">
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-slate-400 mb-1">Email (Locked)</label><input type="email" disabled value="${currentStudentProfile.email || ''}" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded text-slate-500 cursor-not-allowed"></div>
-                    <div><label class="block text-slate-400 mb-1">Student ID (Locked)</label><input type="text" disabled value="${currentStudentProfile.unique_identifier || ''}" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded text-slate-500 cursor-not-allowed"></div>
+                    <div><label class="block text-slate-400 mb-1">Email Address (Admin Locked)</label><input type="email" disabled value="${currentStudentProfile.email || ''}" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded text-slate-500 cursor-not-allowed"></div>
+                    <div><label class="block text-slate-400 mb-1">Student ID (Admin Locked)</label><input type="text" disabled value="${currentStudentProfile.unique_identifier || ''}" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded text-slate-500 cursor-not-allowed"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-slate-400 mb-1">First Name (Locked)</label><input type="text" disabled value="${currentStudentProfile.first_name || ''}" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded text-slate-500 cursor-not-allowed"></div>
-                    <div><label class="block text-slate-400 mb-1">Last Name (Locked)</label><input type="text" disabled value="${currentStudentProfile.last_name || ''}" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded text-slate-500 cursor-not-allowed"></div>
+                    <div><label class="block text-slate-400 mb-1">First Name (Admin Locked)</label><input type="text" disabled value="${currentStudentProfile.first_name || ''}" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded text-slate-500 cursor-not-allowed"></div>
+                    <div><label class="block text-slate-400 mb-1">Last Name (Admin Locked)</label><input type="text" disabled value="${currentStudentProfile.last_name || ''}" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded text-slate-500 cursor-not-allowed"></div>
                 </div>
+                <div><label class="block text-slate-400 mb-1">Organization (Admin Locked)</label><input type="text" disabled value="${tenantObj?.name || 'Unassigned'}" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded text-slate-500 cursor-not-allowed"></div>
                 <div class="grid grid-cols-2 gap-4">
                     <div><label class="block text-slate-400 mb-1">Department</label><input type="text" id="prof-dept" value="${currentStudentProfile.department || ''}" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"></div>
                     <div><label class="block text-slate-400 mb-1">Division</label><input type="text" id="prof-div" value="${currentStudentProfile.division || ''}" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"></div>
                 </div>
                 <div><label class="block text-slate-400 mb-1">Phone Number</label><input type="text" id="prof-phone" value="${currentStudentProfile.phone || ''}" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"></div>
                 <div><label class="block text-slate-400 mb-1">Street Address</label><input type="text" id="prof-street" value="${currentStudentProfile.street_address || ''}" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"></div>
-                <button type="submit" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-semibold">Save Profile Updates</button>
+                <button type="submit" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-semibold transition focus:ring-2 focus:ring-blue-500">Save Profile Updates</button>
             </form>
         </div>`;
 
     document.getElementById('student-profile-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const payload = { department: document.getElementById('prof-dept').value, division: document.getElementById('prof-div').value, phone: document.getElementById('prof-phone').value, street_address: document.getElementById('prof-street').value };
-        await supabase.from('profiles').update(payload).eq('id', currentStudentProfile.id);
-        alert('Profile successfully updated!');
+        const payload = { 
+            department: document.getElementById('prof-dept').value, 
+            division: document.getElementById('prof-div').value, 
+            phone: document.getElementById('prof-phone').value, 
+            street_address: document.getElementById('prof-street').value 
+        };
+        const { error } = await supabase.from('profiles').update(payload).eq('id', currentStudentProfile.id);
+        if (error) alert('Error updating profile: ' + error.message);
+        else alert('Profile successfully updated!');
     });
 }
