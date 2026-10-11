@@ -69,9 +69,30 @@
             </div>
         </div>
         <div id="admin-tab-students-list" class="hidden space-y-6"><div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl"><h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3">Student Directory</h2><table class="w-full text-left text-xs text-slate-300"><thead class="bg-slate-950 text-slate-400 border-b border-slate-800"><tr><th class="p-3">Name</th><th class="p-3">Student ID</th><th class="p-3">Status</th><th class="p-3 text-right">Actions</th></tr></thead><tbody id="admin-students-tbody" class="divide-y divide-slate-800"></tbody></table></div></div>
-        <div id="admin-tab-admins-list" class="hidden space-y-6"><div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl"><h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Admin Directory</h2><table class="w-full text-left text-xs text-slate-300"><thead class="bg-slate-950 text-slate-400 border-b border-slate-800"><tr><th class="p-3">Email</th><th class="p-3">Organization</th><th class="p-3">Role</th></tr></thead><tbody id="admin-admins-tbody" class="divide-y divide-slate-800"></tbody></table></div></div>
-        <div id="admin-tab-reports" class="hidden space-y-6"><div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl"><h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3">Compliance Ledger</h2><table class="w-full text-left text-xs text-slate-300"><thead class="bg-slate-950 text-slate-400 border-b border-slate-800"><tr><th class="p-3">Student</th><th class="p-3">Course</th><th class="p-3">CEUs</th><th class="p-3">Completed</th></tr></thead><tbody id="compliance-report-tbody" class="divide-y divide-slate-800"></tbody></table></div></div>
-        <div id="admin-tab-tenants" class="hidden space-y-8"><div class="grid grid-cols-1 lg:grid-cols-3 gap-8"><div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4"><h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Provision Admin</h2><form id="provision-tenant-admin-form" class="space-y-3"><div><select id="admin-tenant-select" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"><option value="">-- Choose Tenant --</option></select></div><div><input type="email" id="admin-prov-email" placeholder="Admin Email" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div><div><input type="password" id="admin-prov-pass" placeholder="Password" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div><button type="submit" class="w-full py-2 bg-blue-600 text-white rounded text-xs font-semibold">Create Tenant Admin</button></form></div><div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl"><h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Tenants Directory</h2></div></div></div>
+        <div id="admin-tab-admins-list" class="hidden space-y-6"><div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl"><h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Admin Directory</h2><table class="w-full text-left text-xs text-slate-300"><thead class="bg-slate-950 text-slate-400 border-b border-slate-800"><tr><th class="p-3">Email</th><th class="p-3">Organization</th><th class="p-3">Role</th><th class="p-3">Status</th></tr></thead><tbody id="admin-admins-tbody" class="divide-y divide-slate-800"></tbody></table></div></div>
+        <div id="admin-tab-reports" class="hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4">
+                <div class="flex justify-between items-center"><h2 class="text-lg font-bold text-blue-400">Compliance Ledger</h2><button onclick="window.exportComplianceCSV()" class="px-3 py-1.5 bg-emerald-600 text-white rounded text-xs font-semibold">Export CSV</button></div>
+                <table class="w-full text-left text-xs text-slate-300"><thead class="bg-slate-950 text-slate-400 border-b border-slate-800"><tr><th class="p-3">Student</th><th class="p-3">ID</th><th class="p-3">Course</th><th class="p-3">CEUs</th><th class="p-3">Completed</th></tr></thead><tbody id="compliance-report-tbody" class="divide-y divide-slate-800"></tbody></table>
+            </div>
+        </div>
+        <div id="admin-tab-tenants" class="hidden space-y-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4">
+                    <h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Provision Admin</h2>
+                    <form id="provision-tenant-admin-form" class="space-y-3">
+                        <div><select id="admin-tenant-select" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"><option value="">-- Choose Tenant --</option></select></div>
+                        <div><input type="email" id="admin-prov-email" placeholder="Admin Email" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div>
+                        <div><input type="password" id="admin-prov-pass" placeholder="Password" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div>
+                        <button type="submit" class="w-full py-2 bg-blue-600 text-white rounded text-xs font-semibold">Create Tenant Admin</button>
+                    </form>
+                </div>
+                <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                    <h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Tenants Directory</h2>
+                    <table class="w-full text-left text-xs text-slate-300"><thead class="bg-slate-950 text-slate-400 border-b border-slate-800"><tr><th class="p-3">Name</th><th class="p-3">Slug</th><th class="p-3">Status</th></tr></thead><tbody id="tenants-table-tbody" class="divide-y divide-slate-800"></tbody></table>
+                </div>
+            </div>
+        </div>
     </main>
     <footer class="bg-slate-900 border-t border-slate-800 px-6 py-4 text-center text-xs text-slate-400">
         <p>&copy; 2026 Griffin Consulting Training Institute. Strategy, Performance, People.</p>
