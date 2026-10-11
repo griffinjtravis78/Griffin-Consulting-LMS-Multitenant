@@ -13,32 +13,48 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 // Global Auth Guard function with Tenant Context and Service Pause Intercept
 export async function checkAuth(requiredRole) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+            window.location.href = './index.html';
+            return null;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*, tenants(*)')
+            .eq('id', session.user.id)
+            .single();
+
+        if (profileError || !profile) {
+            window.location.href = './index.html';
+            return null;
+        }
+
+        if (requiredRole) {
+            if (requiredRole === 'admin' && profile.role !== 'admin' && profile.role !== 'super_admin') {
+                window.location.href = './index.html';
+                return null;
+            } else if (requiredRole !== 'admin' && profile.role !== requiredRole) {
+                window.location.href = './index.html';
+                return null;
+            }
+        }
+
+        // Check if user's assigned tenant service is paused or archived
+        if (profile.tenants && profile.tenants.service_status && profile.tenants.service_status !== 'active') {
+            alert(`Service has been paused, temporarily. Please Contact your IT Dept for further information:\n${profile.tenants.technical_contact_first_name || 'IT'} ${profile.tenants.technical_contact_last_name || 'Support'} (${profile.tenants.technical_contact_email || 'support@org.gov'})`);
+            await supabase.auth.signOut();
+            window.location.href = './index.html';
+            return null;
+        }
+
+        return profile;
+    } catch (err) {
+        console.error('Auth guard exception:', err);
         window.location.href = './index.html';
         return null;
     }
-
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*, tenants(*)')
-        .eq('id', session.user.id)
-        .single();
-
-    if (profileError || !profile || (requiredRole && profile.role !== requiredRole)) {
-        window.location.href = './index.html';
-        return null;
-    }
-
-    // Check if user's assigned tenant service is paused or archived (for single-tenant / admin contexts)
-    if (profile.tenants && profile.tenants.service_status && profile.tenants.service_status !== 'active') {
-        alert(`Service has been paused, temporarily. Please Contact your IT Dept for further information:\n${profile.tenants.technical_contact_first_name || 'IT'} ${profile.tenants.technical_contact_last_name || 'Support'} (${profile.tenants.technical_contact_email || 'support@org.gov'})`);
-        await supabase.auth.signOut();
-        window.location.href = './index.html';
-        return null;
-    }
-
-    return profile;
 }
 
 // Global Legal Disclaimers Modal Handler
