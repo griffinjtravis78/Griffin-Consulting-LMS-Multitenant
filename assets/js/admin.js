@@ -10,31 +10,27 @@ window.handleAdminSignOut = async function() {
 };
 
 window.switchAdminTab = function(tabName) {
-    document.getElementById('admin-tab-courses').classList.add('hidden');
-    document.getElementById('admin-tab-students').classList.add('hidden');
-    document.getElementById('admin-tab-reports').classList.add('hidden');
-    const tenantTab = document.getElementById('admin-tab-tenants');
-    if (tenantTab) tenantTab.classList.add('hidden');
+    ['courses', 'students', 'students-list', 'admins-list', 'reports', 'tenants'].forEach(t => {
+        const el = document.getElementById(`admin-tab-${t}`);
+        if (el) el.classList.add('hidden');
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (btn) btn.className = 'px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition';
+    });
 
-    document.getElementById('tab-btn-courses').className = 'px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition';
-    document.getElementById('tab-btn-students').className = 'px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition';
-    document.getElementById('tab-btn-reports').className = 'px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition';
-    const tenantBtn = document.getElementById('tab-btn-tenants');
-    if (tenantBtn && !tenantBtn.classList.contains('hidden')) {
-        tenantBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded text-purple-300 hover:text-white transition bg-purple-600/20 border border-purple-500/30';
+    const targetTab = document.getElementById(`admin-tab-${tabName}`);
+    if (targetTab) targetTab.classList.remove('hidden');
+
+    const targetBtn = document.getElementById(`tab-btn-${tabName}`);
+    if (targetBtn) {
+        targetBtn.className = tabName === 'tenants' 
+            ? 'px-3 py-1.5 text-xs font-semibold rounded bg-purple-600 text-white transition' 
+            : 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition';
     }
 
-    document.getElementById(`admin-tab-${tabName}`).classList.remove('hidden');
-    
-    if (tabName === 'tenants') {
-        if (tenantBtn) tenantBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-purple-600 text-white transition';
-        loadTenantsManagement();
-    } else if (tabName === 'students') {
-        document.getElementById(`tab-btn-${tabName}`).className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition';
-        loadStudentTenantDropdowns(); // <-- Instantly populates organization dropdown when switching to tab
-    } else {
-        document.getElementById(`tab-btn-${tabName}`).className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition';
-    }
+    if (tabName === 'tenants') loadTenantsManagement();
+    if (tabName === 'students') loadStudentTenantDropdowns();
+    if (tabName === 'students-list') loadStudentManagementTable();
+    if (tabName === 'admins-list') loadAdminManagementTable();
 };
 
 (async () => {
@@ -115,7 +111,6 @@ async function fetchAdminCourses() {
                         <button onclick="window.deleteCourse(${course.id})" class="px-3 py-1 bg-red-600/20 text-red-400 rounded text-xs">Delete Course</button>
                     </div>
 
-                    <!-- Course Lessons & SCORM / Media Uploader Section -->
                     <div class="border-t border-slate-800 pt-4 space-y-3">
                         <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Course Modules & SCORM Packages</h4>
                         <div class="space-y-2">
@@ -127,7 +122,6 @@ async function fetchAdminCourses() {
                             `).join('') : '<p class="text-xs text-slate-500 italic">No modules added to this course yet.</p>'}
                         </div>
 
-                        <!-- Add Lesson Form -->
                         <form onsubmit="window.handleAddLesson(event, ${course.id})" class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-3 mt-3">
                             <p class="text-xs font-bold text-blue-400">+ Add Lesson or SCORM Module</p>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -148,7 +142,7 @@ async function fetchAdminCourses() {
     } catch (err) {
         console.error(err);
     }
-}
+};
 
 window.deleteCourse = async function(courseId) {
     if (!confirm('Are you sure you want to delete this course?')) return;
@@ -203,7 +197,6 @@ window.handleAddLesson = async function(e, courseId) {
     }
 };
 
-// Create Course Handler
 document.getElementById('create-course-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = document.getElementById('course-title').value;
@@ -239,7 +232,6 @@ document.getElementById('create-course-form').addEventListener('submit', async (
     }
 });
 
-// --- TENANT MANAGEMENT & PROFILES ---
 async function loadTenantSelectDropdowns() {
     const { data: tenants } = await supabase.from('tenants').select('id, name, slug');
     const selects = [document.getElementById('admin-tenant-select'), document.getElementById('course-tenant-id')];
@@ -280,7 +272,6 @@ window.addStudentTenantRow = async function() {
     container.appendChild(row);
 };
 
-// Create Tenant Profile Handler
 document.getElementById('create-tenant-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('t-name').value;
@@ -362,7 +353,111 @@ window.toggleTenantStatus = async function(tenantId, newStatus) {
     else loadTenantsManagement();
 };
 
-// Provision Student Handler with Multi-Org Support
+window.loadStudentManagementTable = async function() {
+    const tbody = document.getElementById('admin-students-tbody');
+    const { data: students } = await supabase
+        .from('profiles')
+        .select('*, student_tenants(tenants(name)), tenants(name)')
+        .eq('role', 'student')
+        .order('created_at', { ascending: false });
+
+    if (!students || students.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500 italic">No students found.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = students.map(s => {
+        const orgNames = s.student_tenants?.map(st => st.tenants?.name).join(', ') || s.tenants?.name || 'Unassigned';
+        const status = s.status || 'active';
+        return `
+            <tr class="hover:bg-slate-950/50">
+                <td class="p-3 font-semibold text-white">${s.first_name || 'N/A'}</td>
+                <td class="p-3 font-semibold text-white">${s.last_name || 'N/A'}</td>
+                <td class="p-3 text-slate-300">${orgNames}</td>
+                <td class="p-3 font-mono text-blue-400">${s.unique_identifier || s.email}</td>
+                <td class="p-3">
+                    <span class="px-2 py-0.5 rounded text-xs ${status === 'active' ? 'bg-emerald-600/20 text-emerald-400' : status === 'suspended' ? 'bg-amber-600/20 text-amber-400' : 'bg-red-600/20 text-red-400'}">${status.toUpperCase()}</span>
+                </td>
+                <td class="p-3 text-right relative">
+                    <div class="inline-block relative">
+                        <button onclick="window.toggleActionMenu(event, '${s.id}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold">⋮</button>
+                        <div id="menu-${s.id}" class="hidden absolute right-0 mt-2 w-36 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-20 py-1 text-left">
+                            <button onclick="window.updateProfileStatus('${s.id}', 'active')" class="w-full px-3 py-1.5 text-xs text-emerald-300 hover:bg-slate-700">Activate</button>
+                            <button onclick="window.updateProfileStatus('${s.id}', 'suspended')" class="w-full px-3 py-1.5 text-xs text-amber-300 hover:bg-slate-700">Suspend</button>
+                            <button onclick="window.updateProfileStatus('${s.id}', 'archived')" class="w-full px-3 py-1.5 text-xs text-red-400 hover:bg-slate-700">Archive</button>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window.loadAdminManagementTable = async function() {
+    const tbody = document.getElementById('admin-admins-tbody');
+    const { data: admins } = await supabase
+        .from('profiles')
+        .select('*, tenants(name)')
+        .in('role', ['admin', 'super_admin'])
+        .order('created_at', { ascending: false });
+
+    if (!admins || admins.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500 italic">No admins found.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = admins.map(a => {
+        const status = a.status || 'active';
+        return `
+            <tr class="hover:bg-slate-950/50">
+                <td class="p-3">
+                    <p class="font-semibold text-white">${a.first_name || ''} ${a.last_name || ''}</p>
+                    <p class="text-xs text-slate-400 font-mono">${a.email}</p>
+                </td>
+                <td class="p-3 text-purple-300">${a.tenants?.name || 'Platform Ecosystem (Super Admin)'}</td>
+                <td class="p-3 font-semibold text-blue-400">${a.role.toUpperCase()}</td>
+                <td class="p-3">
+                    <span class="px-2 py-0.5 rounded text-xs ${status === 'active' ? 'bg-emerald-600/20 text-emerald-400' : status === 'suspended' ? 'bg-amber-600/20 text-amber-400' : 'bg-red-600/20 text-red-400'}">${status.toUpperCase()}</span>
+                </td>
+                <td class="p-3 text-right relative">
+                    <div class="inline-block relative">
+                        <button onclick="window.toggleActionMenu(event, '${a.id}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold">⋮</button>
+                        <div id="menu-${a.id}" class="hidden absolute right-0 mt-2 w-36 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-20 py-1 text-left">
+                            <button onclick="window.updateProfileStatus('${a.id}', 'active')" class="w-full px-3 py-1.5 text-xs text-emerald-300 hover:bg-slate-700">Activate</button>
+                            <button onclick="window.updateProfileStatus('${a.id}', 'suspended')" class="w-full px-3 py-1.5 text-xs text-amber-300 hover:bg-slate-700">Suspend</button>
+                            <button onclick="window.updateProfileStatus('${a.id}', 'archived')" class="w-full px-3 py-1.5 text-xs text-red-400 hover:bg-slate-700">Archive</button>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window.toggleActionMenu = function(e, id) {
+    e.stopPropagation();
+    document.querySelectorAll('[id^="menu-"]').forEach(m => {
+        if (m.id !== `menu-${id}`) m.classList.add('hidden');
+    });
+    const menu = document.getElementById(`menu-${id}`);
+    if (menu) menu.classList.toggle('hidden');
+};
+
+window.addEventListener('click', () => {
+    document.querySelectorAll('[id^="menu-"]').forEach(m => m.classList.add('hidden'));
+});
+
+window.updateProfileStatus = async function(userId, newStatus) {
+    const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', userId);
+    if (error) {
+        alert('Error updating status: ' + error.message);
+    } else {
+        alert(`User status successfully updated to ${newStatus.toUpperCase()}`);
+        loadStudentManagementTable();
+        loadAdminManagementTable();
+    }
+};
+
 document.getElementById('provision-student-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('prov-email').value;
@@ -378,7 +473,7 @@ document.getElementById('provision-student-form').addEventListener('submit', asy
     }
 
     const userId = authData.user.id;
-    await supabase.from('profiles').upsert([{ id: userId, email, role: 'student', unique_identifier, first_name, last_name }]);
+    await supabase.from('profiles').upsert([{ id: userId, email, role: 'student', unique_identifier, first_name, last_name, status: 'active' }]);
 
     const tenantSelects = document.querySelectorAll('.student-tenant-select');
     for (let sel of tenantSelects) {
@@ -392,7 +487,6 @@ document.getElementById('provision-student-form').addEventListener('submit', asy
     loadDashboardStats();
 });
 
-// Provision Tenant Admin
 document.getElementById('provision-tenant-admin-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const tenant_id = document.getElementById('admin-tenant-select').value;
@@ -405,7 +499,7 @@ document.getElementById('provision-tenant-admin-form')?.addEventListener('submit
         return;
     }
 
-    await supabase.from('profiles').upsert([{ id: authData.user.id, email, role: 'admin', tenant_id }]);
+    await supabase.from('profiles').upsert([{ id: authData.user.id, email, role: 'admin', tenant_id, status: 'active' }]);
     alert('Tenant Admin successfully provisioned!');
     document.getElementById('provision-tenant-admin-form').reset();
 });
