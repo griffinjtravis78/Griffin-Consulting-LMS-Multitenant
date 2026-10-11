@@ -4,93 +4,53 @@ const SUPABASE_URL = 'https://affszlowgizrxzfzmavp.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_1Z-1jXB-qrmY8iJdzW2ecg_CxL0Hv-a';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true
-    }
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 
-// Global Auth Guard function with Tenant Context and Service Pause Intercept
 export async function checkAuth(requiredRole) {
     try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !session) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { window.location.href = './index.html'; return null; }
+
+        const { data: profile } = await supabase.from('profiles').select('*, tenants(*)').eq('id', session.user.id).single();
+        if (!profile || (requiredRole && requiredRole === 'admin' && profile.role !== 'admin' && profile.role !== 'super_admin') || (requiredRole && requiredRole !== 'admin' && profile.role !== requiredRole)) {
             window.location.href = './index.html';
             return null;
         }
 
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*, tenants(*)')
-            .eq('id', session.user.id)
-            .single();
-
-        if (profileError || !profile) {
-            window.location.href = './index.html';
-            return null;
-        }
-
-        if (requiredRole) {
-            if (requiredRole === 'admin' && profile.role !== 'admin' && profile.role !== 'super_admin') {
-                window.location.href = './index.html';
-                return null;
-            } else if (requiredRole !== 'admin' && profile.role !== requiredRole) {
-                window.location.href = './index.html';
-                return null;
-            }
-        }
-
-        // Check if user's assigned tenant service is paused or archived
-        if (profile.tenants && profile.tenants.service_status && profile.tenants.service_status !== 'active') {
-            alert(`Service has been paused, temporarily. Please Contact your IT Dept for further information:\n${profile.tenants.technical_contact_first_name || 'IT'} ${profile.tenants.technical_contact_last_name || 'Support'} (${profile.tenants.technical_contact_email || 'support@org.gov'})`);
+        if (profile.tenants?.service_status && profile.tenants.service_status !== 'active') {
+            alert(`Service suspended. Contact IT: ${profile.tenants.technical_contact_first_name || 'Support'} (${profile.tenants.technical_contact_email || 'support@org.gov'})`);
             await supabase.auth.signOut();
             window.location.href = './index.html';
             return null;
         }
-
         return profile;
-    } catch (err) {
-        console.error('Auth guard exception:', err);
+    } catch {
         window.location.href = './index.html';
         return null;
     }
 }
 
-// Global Legal Disclaimers Modal Handler
-window.openLegalModal = function(policyType) {
-    let title = '';
-    let body = '';
-
-    switch(policyType) {
+window.openLegalModal = function(type) {
+    let title = '', body = '';
+    switch(type) {
         case 'terms':
-            title = '1. Terms of Service & Acceptable Use Policy';
-            body = `<p class="mb-3">Welcome to the Multi-Tenant LMS Platform ("Platform"). By accessing, registering for, or using our platform, you agree to comply with and be bound by these Terms of Service.</p>
-                    <ul class="list-disc pl-5 space-y-2">
-                        <li><strong>Account Security:</strong> Users are responsible for maintaining the confidentiality of their account credentials.</li>
-                        <li><strong>Acceptable Use:</strong> Users agree not to misuse the platform or upload malicious code.</li>
-                        <li><strong>Service Availability:</strong> We strive to maintain high availability but do not guarantee uninterrupted access.</li>
-                    </ul>`;
+            title = 'Terms of Service & Acceptable Use';
+            body = `<p class="mb-3">Welcome to Griffin Consulting Training Institute. By accessing our platform, you agree to these Terms of Service. Account sharing is strictly prohibited. Violations result in immediate termination.</p>`;
             break;
         case 'privacy':
-            title = '2. Privacy Policy';
-            body = `<p class="mb-3">We respect your privacy and protect personal data in accordance with applicable standards.</p>
-                    <ul class="list-disc pl-5 space-y-2">
-                        <li><strong>Data Collection:</strong> We collect information provided during registration, course enrollment, and progress tracking.</li>
-                        <li><strong>Use of Data:</strong> Data is used solely to deliver training content, track certification progress, and improve functionality.</li>
-                    </ul>`;
+            title = 'Privacy Policy (GDPR / CCPA Compliant)';
+            body = `<p class="mb-3">We protect your personal data in compliance with GDPR and CCPA standards. You retain the right to data export and deletion.</p>`;
             break;
-        case 'ip':
-            title = '3. Intellectual Property (IP) & Copyright Disclaimer';
-            body = `<p class="mb-3">All hosted content is the exclusive property of its respective organization or licensors.</p>`;
-            break;
-        case 'outcomes':
-            title = '4. Educational & Professional Outcome Disclaimer';
-            body = `<p class="mb-3">Courses are designed for professional development and capacity building without guaranteed employment outcomes.</p>`;
+        case 'disclaimer':
+            title = 'Legal & Educational Disclaimers';
+            body = `<p class="mb-3"><strong>No Guarantee of Outcomes:</strong> Courses do not guarantee employment, promotions, or formal professional licensure unless explicitly contracted.</p>
+                    <p class="mb-3"><strong>Professional Services:</strong> Content is for educational purposes only and does not constitute formal legal, financial, or therapeutic advice.</p>
+                    <p class="mb-3"><strong>Earnings Disclaimer:</strong> Business case studies are illustrative and do not guarantee financial return.</p>`;
             break;
         case 'accessibility':
-            title = '5. Accessibility & Third-Party Content Disclaimer';
-            body = `<p class="mb-3">Committed to digital accessibility and WCAG standards compliance.</p>`;
+            title = 'Accessibility Statement (WCAG 2.1 AA)';
+            body = `<p class="mb-3">We are committed to digital accessibility, adhering to WCAG 2.1 Level AA standards across all interfaces.</p>`;
             break;
     }
 
@@ -98,23 +58,15 @@ window.openLegalModal = function(policyType) {
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'legal-modal';
-        modal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4';
-        modal.innerHTML = `
-            <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl">
-                <div class="p-4 border-b border-slate-700 flex justify-between items-center">
-                    <h3 id="modal-title" class="text-lg font-bold text-blue-400"></h3>
-                    <button onclick="document.getElementById('legal-modal').classList.add('hidden')" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
-                </div>
-                <div id="modal-body" class="p-6 overflow-y-auto text-slate-300 text-sm space-y-4"></div>
-                <div class="p-4 border-t border-slate-700 text-right">
-                    <button onclick="document.getElementById('legal-modal').classList.add('hidden')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold">Close</button>
-                </div>
-            </div>
-        `;
+        modal.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4';
+        modal.innerHTML = `<div class="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-6 text-slate-100 shadow-2xl space-y-4">
+            <h3 id="m-title" class="text-lg font-bold text-blue-400"></h3>
+            <div id="m-body" class="text-xs text-slate-300 max-h-[60vh] overflow-y-auto space-y-2"></div>
+            <div class="text-right"><button onclick="document.getElementById('legal-modal').classList.add('hidden')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold">Close</button></div>
+        </div>`;
         document.body.appendChild(modal);
     }
-
-    document.getElementById('modal-title').textContent = title;
-    document.getElementById('modal-body').innerHTML = body;
+    document.getElementById('m-title').textContent = title;
+    document.getElementById('m-body').innerHTML = body;
     modal.classList.remove('hidden');
 };
