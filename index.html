@@ -67,13 +67,21 @@
 
                 const { data: profile, error: profileError } = await supabase
                     .from('profiles')
-                    .select('role')
+                    .select('role, tenant_id, tenants(*)')
                     .eq('id', data.user.id)
                     .single();
 
                 if (profileError || !profile) {
                     errorElement.textContent = 'User role not assigned. Contact administrator.';
                     errorElement.classList.remove('hidden');
+                    return;
+                }
+
+                // Check if admin tenant is paused
+                if (profile.role === 'admin' && profile.tenants && profile.tenants.service_status !== 'active') {
+                    errorElement.textContent = `Service has been paused, temporarily. Please contact IT: ${profile.tenants.technical_contact_first_name || 'Support'} (${profile.tenants.technical_contact_email || 'support@org.gov'})`;
+                    errorElement.classList.remove('hidden');
+                    await supabase.auth.signOut();
                     return;
                 }
 
