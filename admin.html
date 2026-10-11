@@ -17,6 +17,8 @@
         <div class="flex items-center gap-2 flex-wrap">
             <button onclick="window.switchAdminTab('courses')" id="tab-btn-courses" class="px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition">Courses & Content</button>
             <button onclick="window.switchAdminTab('students')" id="tab-btn-students" class="px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition">Provision Student</button>
+            <button onclick="window.switchAdminTab('students-list')" id="tab-btn-students-list" class="px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition">Student Management</button>
+            <button onclick="window.switchAdminTab('admins-list')" id="tab-btn-admins-list" class="px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition">Admin Management</button>
             <button onclick="window.switchAdminTab('reports')" id="tab-btn-reports" class="px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition">Compliance Reports</button>
             <button onclick="window.switchAdminTab('tenants')" id="tab-btn-tenants" class="hidden px-3 py-1.5 text-xs font-semibold rounded text-purple-300 hover:text-white transition bg-purple-600/20 border border-purple-500/30">Platform Tenants</button>
             <button onclick="window.handleAdminSignOut()" class="px-3 py-1.5 text-xs font-semibold rounded bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition">Sign Out</button>
@@ -136,6 +138,53 @@
 
                     <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Provision Student Participant</button>
                 </form>
+            </div>
+        </div>
+
+        <!-- TAB: STUDENT MANAGEMENT DIRECTORY -->
+        <div id="admin-tab-students-list" class="hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3">Student Participant Directory</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">First Name</th>
+                                <th class="p-3">Last Name</th>
+                                <th class="p-3">Organization</th>
+                                <th class="p-3">Student ID / Email</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-students-tbody" class="divide-y divide-slate-800">
+                            <tr><td colspan="6" class="p-4 text-center text-slate-500 italic">Loading students...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: ADMIN MANAGEMENT DIRECTORY -->
+        <div id="admin-tab-admins-list" class="hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                <h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Tenant Administrator Directory</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Name / Email</th>
+                                <th class="p-3">Assigned Organization</th>
+                                <th class="p-3">Role</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-admins-tbody" class="divide-y divide-slate-800">
+                            <tr><td colspan="5" class="p-4 text-center text-slate-500 italic">Loading admins...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
