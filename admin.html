@@ -8,8 +8,6 @@
     <script type="module" src="./assets/js/admin.js"></script>
 </head>
 <body class="h-full bg-slate-950 text-slate-100 flex flex-col justify-between font-sans">
-
-    <!-- Top Navigation Bar -->
     <nav class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex justify-between items-center flex-wrap gap-4">
         <div class="flex items-center gap-3">
             <h1 class="text-base font-bold text-blue-400 tracking-wide">Organization LMS — Admin Portal</h1>
@@ -21,333 +19,62 @@
             <button onclick="window.switchAdminTab('admins-list')" id="tab-btn-admins-list" class="px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition">Admin Management</button>
             <button onclick="window.switchAdminTab('reports')" id="tab-btn-reports" class="px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition">Compliance Reports</button>
             <button onclick="window.switchAdminTab('tenants')" id="tab-btn-tenants" class="hidden px-3 py-1.5 text-xs font-semibold rounded text-purple-300 hover:text-white transition bg-purple-600/20 border border-purple-500/30">Platform Tenants</button>
-            <button onclick="window.handleAdminSignOut()" class="px-3 py-1.5 text-xs font-semibold rounded bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition">Sign Out</button>
+            <button onclick="window.handleAdminSignOut()" class="px-3 py-1.5 text-xs font-semibold rounded bg-red-600/20 text-red-400 hover:bg-red-600 transition">Sign Out</button>
         </div>
     </nav>
-
-    <!-- Main Content Area -->
     <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-8 space-y-8">
-
-        <!-- Metrics Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Courses</p>
-                <p id="stat-total-courses" class="text-3xl font-ext500 text-white mt-2">0</p>
-            </div>
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Enrolled Participants</p>
-                <p id="stat-total-students" class="text-3xl font-ext500 text-white mt-2">0</p>
-            </div>
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Active Modules</p>
-                <p id="stat-total-modules" class="text-3xl font-ext500 text-white mt-2">0</p>
-            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl"><p class="text-xs font-semibold uppercase text-slate-400">Total Courses</p><p id="stat-total-courses" class="text-3xl font-bold text-white mt-2">0</p></div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl"><p class="text-xs font-semibold uppercase text-slate-400">Enrolled Participants</p><p id="stat-total-students" class="text-3xl font-bold text-white mt-2">0</p></div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl"><p class="text-xs font-semibold uppercase text-slate-400">Active Modules</p><p id="stat-total-modules" class="text-3xl font-bold text-white mt-2">0</p></div>
         </div>
-
-        <!-- TAB 1: COURSES & CONTENT -->
         <div id="admin-tab-courses" class="space-y-8">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                        <h2 id="course-form-heading" class="text-lg font-bold text-blue-400">Create New Course</h2>
-                        <button type="button" id="cancel-course-edit" onclick="window.resetCourseForm()" class="hidden px-2 py-1 bg-slate-800 text-slate-300 rounded text-xs">Cancel Edit</button>
-                    </div>
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3"><h2 id="course-form-heading" class="text-lg font-bold text-blue-400">Create New Course</h2><button type="button" id="cancel-course-edit" onclick="window.resetCourseForm()" class="hidden px-2 py-1 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button></div>
                     <form id="create-course-form" class="space-y-4">
                         <input type="hidden" id="course-id-field">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Course ID / Number</label>
-                            <input type="text" id="course-number" placeholder="e.g., CRSE-101" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 font-mono">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Course Title</label>
-                            <input type="text" id="course-title" placeholder="e.g., Public Sector Leadership" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Description</label>
-                            <textarea id="course-desc" rows="3" placeholder="Course overview..." class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100"></textarea>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">CEU Credits</label>
-                            <input type="number" step="0.25" id="course-ceu" value="0.00" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-                        <div id="course-tenant-assignment-container" class="hidden">
-                            <label class="block text-xs font-medium text-purple-400 mb-1">Assign to Tenant Organization</label>
-                            <select id="course-tenant-id" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                                <option value="">-- Global / All Tenants --</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Thumbnail Image</label>
-                            <input type="file" id="course-thumbnail" accept="image/*" class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white">
-                        </div>
-                        <button type="submit" id="course-submit-btn" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Create Course</button>
+                        <div><label class="block text-xs font-medium text-slate-400 mb-1">Course ID / Number</label><input type="text" id="course-number" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 font-mono"></div>
+                        <div><label class="block text-xs font-medium text-slate-400 mb-1">Course Title</label><input type="text" id="course-title" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div>
+                        <div><label class="block text-xs font-medium text-slate-400 mb-1">Description</label><textarea id="course-desc" rows="3" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></textarea></div>
+                        <div><label class="block text-xs font-medium text-slate-400 mb-1">CEU Credits</label><input type="number" step="0.25" id="course-ceu" value="0.00" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div>
+                        <div id="course-tenant-assignment-container" class="hidden"><label class="block text-xs font-medium text-purple-400 mb-1">Assign Tenant</label><select id="course-tenant-id" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"><option value="">-- Global --</option></select></div>
+                        <div><label class="block text-xs font-medium text-slate-400 mb-1">Thumbnail</label><input type="file" id="course-thumbnail" accept="image/*" class="w-full text-xs text-slate-400"></div>
+                        <button type="submit" id="course-submit-btn" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold">Create Course</button>
                     </form>
                 </div>
-
                 <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
-                    <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3">Active Courses, Lessons & SCORM Modules</h2>
-                    <div id="admin-course-list" class="space-y-6">
-                        <p class="text-slate-500 text-sm italic">Loading courses...</p>
-                    </div>
+                    <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3">Active Courses & Modules</h2>
+                    <div id="admin-course-list" class="space-y-6"><p class="text-slate-500 text-sm italic">Loading...</p></div>
                 </div>
             </div>
         </div>
-
-        <!-- TAB 2: PROVISION STUDENT -->
         <div id="admin-tab-students" class="hidden space-y-6">
             <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl max-w-4xl mx-auto space-y-6">
-                <div class="border-b border-slate-800 pb-3 flex justify-between items-center">
-                    <div>
-                        <h2 id="provision-student-heading" class="text-lg font-bold text-blue-400">Provision New Student Participant</h2>
-                        <p class="text-xs text-slate-400 mt-1">Create user credentials, agent licenses, and multi-organization associations.</p>
-                    </div>
-                    <button type="button" id="cancel-student-edit" onclick="window.resetStudentForm()" class="hidden px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs">Cancel Edit</button>
-                </div>
-
-                <form id="provision-student-form" class="space-y-6">
+                <div class="border-b border-slate-800 pb-3 flex justify-between items-center"><h2 id="provision-student-heading" class="text-lg font-bold text-blue-400">Provision Student</h2><button type="button" id="cancel-student-edit" onclick="window.resetStudentForm()" class="hidden px-3 py-1 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button></div>
+                <form id="provision-student-form" class="space-y-4">
                     <input type="hidden" id="edit-student-id">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Email Address</label>
-                            <input type="email" id="prov-email" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-                        <div id="prov-pass-container">
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Temporary Password</label>
-                            <input type="password" id="prov-pass" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-xs font-medium text-slate-400 mb-1">Email</label><input type="email" id="prov-email" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div>
+                        <div id="prov-pass-container"><label class="block text-xs font-medium text-slate-400 mb-1">Password</label><input type="password" id="prov-pass" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div>
                     </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Unique Student ID</label>
-                            <input type="text" id="prov-uid" required placeholder="e.g. STU-99281" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">First Name</label>
-                            <input type="text" id="prov-firstname" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Last Name</label>
-                            <input type="text" id="prov-lastname" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div><label class="block text-xs font-medium text-slate-400 mb-1">Student ID</label><input type="text" id="prov-uid" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div>
+                        <div><label class="block text-xs font-medium text-slate-400 mb-1">First Name</label><input type="text" id="prov-firstname" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div>
+                        <div><label class="block text-xs font-medium text-slate-400 mb-1">Last Name</label><input type="text" id="prov-lastname" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div>
                     </div>
-
-                    <div class="space-y-3 border-t border-slate-800 pt-4">
-                        <div class="flex justify-between items-center">
-                            <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Associated Tenant Organizations</h3>
-                            <button type="button" onclick="window.addStudentTenantRow()" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded text-xs font-semibold transition">+ Add Org Association</button>
-                        </div>
-                        <div id="student-tenants-container" class="space-y-3">
-                            <div class="flex gap-4 items-center student-tenant-row bg-slate-950 p-3 rounded-lg border border-slate-800">
-                                <select required class="student-tenant-select w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                                    <option value="">-- Select Organization --</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button type="submit" id="student-submit-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Provision Student Participant</button>
+                    <div id="student-tenants-container" class="space-y-3"></div>
+                    <button type="submit" id="student-submit-btn" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold">Provision Student</button>
                 </form>
             </div>
         </div>
-
-        <!-- TAB: STUDENT MANAGEMENT DIRECTORY -->
-        <div id="admin-tab-students-list" class="hidden space-y-6">
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
-                <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3">Student Participant Directory</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs text-slate-300">
-                        <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                            <tr>
-                                <th class="p-3">First Name</th>
-                                <th class="p-3">Last Name</th>
-                                <th class="p-3">Organization</th>
-                                <th class="p-3">Student ID / Email</th>
-                                <th class="p-3">Status</th>
-                                <th class="p-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="admin-students-tbody" class="divide-y divide-slate-800">
-                            <tr><td colspan="6" class="p-4 text-center text-slate-500 italic">Loading students...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB: ADMIN MANAGEMENT DIRECTORY -->
-        <div id="admin-tab-admins-list" class="hidden space-y-6">
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
-                <h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Tenant Administrator Directory</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs text-slate-300">
-                        <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                            <tr>
-                                <th class="p-3">Name / Email</th>
-                                <th class="p-3">Assigned Organization</th>
-                                <th class="p-3">Role</th>
-                                <th class="p-3">Status</th>
-                                <th class="p-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="admin-admins-tbody" class="divide-y divide-slate-800">
-                            <tr><td colspan="5" class="p-4 text-center text-slate-500 italic">Loading admins...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 3: COMPLIANCE REPORTS -->
-        <div id="admin-tab-reports" class="hidden space-y-6">
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
-                <div class="flex justify-between items-center flex-wrap gap-4 border-b border-slate-800 pb-3">
-                    <div>
-                        <h2 class="text-lg font-bold text-blue-400">State Compliance & Completion Ledger</h2>
-                        <p class="text-xs text-slate-400 mt-1">Verified course completion audit trail for regulatory reporting.</p>
-                    </div>
-                    <button onclick="window.exportComplianceCSV()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition">Export CSV Report</button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs text-slate-300">
-                        <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                            <tr>
-                                <th class="p-3">First Name</th>
-                                <th class="p-3">Last Name</th>
-                                <th class="p-3">Student ID</th>
-                                <th class="p-3">Course Completed</th>
-                                <th class="p-3">CEUs</th>
-                                <th class="p-3">Date Completed</th>
-                            </tr>
-                        </thead>
-                        <tbody id="compliance-report-tbody" class="divide-y divide-slate-800">
-                            <tr><td colspan="6" class="p-4 text-center text-slate-500 italic">Loading compliance records...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 4: PLATFORM TENANTS (SUPER ADMIN ONLY) -->
-        <div id="admin-tab-tenants" class="hidden space-y-8">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                        <h2 id="tenant-form-heading" class="text-lg font-bold text-purple-400">Create Full Tenant Profile</h2>
-                        <button type="button" id="cancel-tenant-edit" onclick="window.resetTenantForm()" class="hidden px-2 py-1 bg-slate-800 text-slate-300 rounded text-xs">Cancel Edit</button>
-                    </div>
-                    
-                    <form id="create-tenant-form" class="space-y-4">
-                        <input type="hidden" id="edit-tenant-id">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Organization Name</label>
-                            <input type="text" id="t-name" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">URL Slug</label>
-                            <input type="text" id="t-slug" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 font-mono text-xs">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Organization Logo</label>
-                            <input type="file" id="t-logo" accept="image/*" class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-purple-600 file:text-white">
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="text" id="t-street" placeholder="Street Address" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                            <input type="text" id="t-street2" placeholder="Suite / Apt" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                        </div>
-                        <div class="grid grid-cols-3 gap-2">
-                            <input type="text" id="t-city" placeholder="City" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                            <input type="text" id="t-state" placeholder="State" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                            <input type="text" id="t-zip" placeholder="Zip" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="text" id="t-phone" placeholder="Org Phone" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                            <input type="text" id="t-website" placeholder="Website URL" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                        </div>
-
-                        <!-- Training Contact -->
-                        <div class="border-t border-slate-800 pt-3 space-y-2">
-                            <p class="text-xs font-semibold text-purple-300 uppercase">Training Contact</p>
-                            <div class="grid grid-cols-2 gap-2">
-                                <input type="text" id="t-train-first" placeholder="First Name" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                                <input type="text" id="t-train-last" placeholder="Last Name" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <input type="email" id="t-train-email" placeholder="Email" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                                <input type="text" id="t-train-phone" placeholder="Phone" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                            </div>
-                        </div>
-
-                        <!-- Technical Contact -->
-                        <div class="border-t border-slate-800 pt-3 space-y-2">
-                            <p class="text-xs font-semibold text-purple-300 uppercase">Technical Contact</p>
-                            <div class="grid grid-cols-2 gap-2">
-                                <input type="text" id="t-tech-first" placeholder="First Name" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                                <input type="text" id="t-tech-last" placeholder="Last Name" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <input type="email" id="t-tech-email" placeholder="Email" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                                <input type="text" id="t-tech-phone" placeholder="Phone" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Issue Ticketing URL</label>
-                            <input type="url" id="t-issuelink" placeholder="https://ticketing.system/submit" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-
-                        <button type="submit" id="tenant-submit-btn" class="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Save Organization Profile</button>
-                    </form>
-
-                    <!-- Provision Tenant Admin -->
-                    <div class="border-t border-slate-800 pt-6 space-y-4">
-                        <h3 class="text-sm font-bold text-purple-400">Provision Tenant Admin</h3>
-                        <form id="provision-tenant-admin-form" class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-medium text-slate-400 mb-1">Select Organization</label>
-                                <select id="admin-tenant-select" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                                    <option value="">-- Choose Tenant --</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-400 mb-1">Admin Email</label>
-                                <input type="email" id="admin-prov-email" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-400 mb-1">Temporary Password</label>
-                                <input type="password" id="admin-prov-pass" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                            </div>
-                            <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition">Create Tenant Admin</button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Active Tenants List & Service Control Table -->
-                <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
-                    <h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Active Platform Tenants & Service Controls</h2>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs text-slate-300">
-                            <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                                <tr>
-                                    <th class="p-3">Organization Name</th>
-                                    <th class="p-3">Slug</th>
-                                    <th class="p-3">Service Status</th>
-                                    <th class="p-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tenants-table-tbody" class="divide-y divide-slate-800">
-                                <tr><td colspan="4" class="p-4 text-center text-slate-500 italic">Loading tenants...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <div id="admin-tab-students-list" class="hidden space-y-6"><div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl"><h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3">Student Directory</h2><table class="w-full text-left text-xs text-slate-300"><thead class="bg-slate-950 text-slate-400 border-b border-slate-800"><tr><th class="p-3">Name</th><th class="p-3">Student ID</th><th class="p-3">Status</th><th class="p-3 text-right">Actions</th></tr></thead><tbody id="admin-students-tbody" class="divide-y divide-slate-800"></tbody></table></div></div>
+        <div id="admin-tab-admins-list" class="hidden space-y-6"><div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl"><h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Admin Directory</h2><table class="w-full text-left text-xs text-slate-300"><thead class="bg-slate-950 text-slate-400 border-b border-slate-800"><tr><th class="p-3">Email</th><th class="p-3">Organization</th><th class="p-3">Role</th></tr></thead><tbody id="admin-admins-tbody" class="divide-y divide-slate-800"></tbody></table></div></div>
+        <div id="admin-tab-reports" class="hidden space-y-6"><div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl"><h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3">Compliance Ledger</h2><table class="w-full text-left text-xs text-slate-300"><thead class="bg-slate-950 text-slate-400 border-b border-slate-800"><tr><th class="p-3">Student</th><th class="p-3">Course</th><th class="p-3">CEUs</th><th class="p-3">Completed</th></tr></thead><tbody id="compliance-report-tbody" class="divide-y divide-slate-800"></tbody></table></div></div>
+        <div id="admin-tab-tenants" class="hidden space-y-8"><div class="grid grid-cols-1 lg:grid-cols-3 gap-8"><div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4"><h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Provision Admin</h2><form id="provision-tenant-admin-form" class="space-y-3"><div><select id="admin-tenant-select" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"><option value="">-- Choose Tenant --</option></select></div><div><input type="email" id="admin-prov-email" placeholder="Admin Email" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div><div><input type="password" id="admin-prov-pass" placeholder="Password" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"></div><button type="submit" class="w-full py-2 bg-blue-600 text-white rounded text-xs font-semibold">Create Tenant Admin</button></form></div><div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl"><h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Tenants Directory</h2></div></div></div>
     </main>
-
-    <!-- Footer -->
-    <footer class="bg-slate-900 border-t border-slate-800 px-6 py-4 text-center text-xs text-slate-400 flex justify-between items-center flex-wrap gap-4">
-        <div>&copy; 2026 Griffin Consulting. All rights reserved. Strategy | Performance | People.</div>
+    <footer class="bg-slate-900 border-t border-slate-800 px-6 py-4 text-center text-xs text-slate-400">
+        <p>&copy; 2026 Griffin Consulting Training Institute. Strategy, Performance, People.</p>
     </footer>
 </body>
 </html>
