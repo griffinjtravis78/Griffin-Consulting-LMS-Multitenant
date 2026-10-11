@@ -61,7 +61,7 @@ window.switchAdminTab = function(tabName) {
 
 async function loadDashboardStats() {
     try {
-        let courseQuery = supabase.from('courses').select('*', { count: 'exact', head: true });
+        let courseQuery = supabase.from('courses').select('*', { count: 'exact', head: true }).eq('archived', false);
         if (currentAdminProfile.role === 'admin' && currentAdminProfile.tenant_id) {
             courseQuery = courseQuery.eq('tenant_id', currentAdminProfile.tenant_id);
         }
@@ -97,37 +97,55 @@ async function fetchAdminCourses() {
 
         container.innerHTML = courses.map(course => {
             const courseLessons = allLessons ? allLessons.filter(l => l.course_id === course.id) : [];
+            const isArchived = course.archived;
             return `
-                <div class="bg-slate-900 p-5 rounded-xl border border-slate-700 space-y-4">
+                <div class="bg-slate-900 p-5 rounded-xl border ${isArchived ? 'border-red-900/50 opacity-75' : 'border-slate-700'} space-y-4">
                     <div class="flex justify-between items-start flex-wrap gap-4">
                         <div class="flex gap-4 items-center">
                             ${course.thumbnail_url ? `<img src="${course.thumbnail_url}" class="w-16 h-16 rounded-lg object-cover border border-slate-700">` : ''}
                             <div>
-                                <h3 class="font-bold text-slate-100 text-base">${course.title}</h3>
-                                <p class="text-xs text-slate-400">${course.description || ''}</p>
-                                <div class="flex gap-3 mt-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-mono bg-slate-800 text-blue-400 px-2 py-0.5 rounded">${course.course_number || 'NO ID'}</span>
+                                    <h3 class="font-bold text-slate-100 text-base">${course.title} ${isArchived ? '<span class="text-xs text-red-400 font-normal">(Archived)</span>' : ''}</h3>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1">${course.description || ''}</p>
+                                <div class="flex gap-3 mt-2 flex-wrap">
                                     <span class="text-xs bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded">${course.ceu_credits || 0} CEUs</span>
                                     <span class="text-xs bg-purple-600/20 text-purple-300 px-2 py-0.5 rounded">${course.tenants?.name || 'Global Course'}</span>
                                 </div>
                             </div>
                         </div>
-                        <button onclick="window.deleteCourse(${course.id})" class="px-3 py-1 bg-red-600/20 text-red-400 rounded text-xs">Delete Course</button>
+                        <div class="flex gap-2">
+                            <button onclick="window.editCourse(${course.id})" class="px-3 py-1 bg-blue-600/20 text-blue-300 hover:bg-blue-600 hover:text-white rounded text-xs transition">Edit Course</button>
+                            <button onclick="window.toggleCourseArchive(${course.id}, ${!isArchived})" class="px-3 py-1 ${isArchived ? 'bg-emerald-600/20 text-emerald-400' : 'bg-amber-600/20 text-amber-400'} rounded text-xs transition">${isArchived ? 'Restore' : 'Archive'}</button>
+                            <button onclick="window.toggleCourseAccordion(${course.id})" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs">Toggle Modules ↕</button>
+                        </div>
                     </div>
 
-                    <div class="border-t border-slate-800 pt-4 space-y-3">
-                        <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Course Modules & SCORM Packages</h4>
+                    <div id="course-modules-section-${course.id}" class="border-t border-slate-800 pt-4 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Course Modules & SCORM Packages</h4>
+                            <span class="text-xs text-slate-400">${courseLessons.length} Modules</span>
+                        </div>
                         <div class="space-y-2">
                             ${courseLessons.length > 0 ? courseLessons.map(l => `
                                 <div class="flex justify-between items-center bg-slate-950 p-2.5 rounded border border-slate-800 text-xs">
-                                    <span class="text-slate-200">▶ [${l.lesson_type.toUpperCase()}]${l.title}</span>
-                                    <button onclick="window.deleteLesson(${l.id})" class="text-red-400 hover:text-red-300">Remove</button>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-mono text-blue-400">[${l.lesson_number || 'MOD'}]</span>
+                                        <span class="text-slate-200">[${l.lesson_type.toUpperCase()}]${l.title}</span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button onclick="window.editLesson(${l.id},${course.id})" class="text-blue-400 hover:text-blue-300">Edit</button>
+                                        <button onclick="window.deleteLesson(${l.id})" class="text-red-400 hover:text-red-300">Remove</button>
+                                    </div>
                                 </div>
                             `).join('') : '<p class="text-xs text-slate-500 italic">No modules added to this course yet.</p>'}
                         </div>
 
                         <form onsubmit="window.handleAddLesson(event, ${course.id})" class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-3 mt-3">
                             <p class="text-xs font-bold text-blue-400">+ Add Lesson or SCORM Module</p>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+                                <input type="text" placeholder="Lesson ID (e.g. L-101)" required class="lesson-num-input px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 font-mono">
                                 <input type="text" placeholder="Module Title" required class="lesson-title-input px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
                                 <select required class="lesson-type-select px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
                                     <option value="scorm">SCORM / HTML5 Zip</option>
@@ -147,14 +165,59 @@ async function fetchAdminCourses() {
     }
 };
 
-window.deleteCourse = async function(courseId) {
-    if (!confirm('Are you sure you want to delete this course?')) return;
-    const { error } = await supabase.from('courses').delete().eq('id', courseId);
+window.toggleCourseAccordion = function(courseId) {
+    const sec = document.getElementById(`course-modules-section-${courseId}`);
+    if (sec) sec.classList.toggle('hidden');
+};
+
+window.toggleCourseArchive = async function(courseId, archiveState) {
+    const { error } = await supabase.from('courses').update({ archived: archiveState }).eq('id', courseId);
     if (error) alert('Error: ' + error.message);
     else {
         loadDashboardStats();
         fetchAdminCourses();
     }
+};
+
+window.editCourse = async function(courseId) {
+    const { data: c, error } = await supabase.from('courses').select('*').eq('id', courseId).single();
+    if (error || !c) return;
+
+    document.getElementById('course-id-field').value = c.id;
+    document.getElementById('course-number').value = c.course_number || '';
+    document.getElementById('course-title').value = c.title || '';
+    document.getElementById('course-desc').value = c.description || '';
+    document.getElementById('course-ceu').value = c.ceu_credits || 0;
+    if (document.getElementById('course-tenant-id')) {
+        document.getElementById('course-tenant-id').value = c.tenant_id || '';
+    }
+
+    document.getElementById('course-form-heading').textContent = `Edit Course: ${c.title}`;
+    document.getElementById('course-submit-btn').textContent = 'Update Course';
+    document.getElementById('cancel-course-edit').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.resetCourseForm = function() {
+    document.getElementById('create-course-form').reset();
+    document.getElementById('course-id-field').value = '';
+    document.getElementById('course-form-heading').textContent = 'Create New Course';
+    document.getElementById('course-submit-btn').textContent = 'Create Course';
+    document.getElementById('cancel-course-edit').classList.add('hidden');
+};
+
+window.editLesson = async function(lessonId, courseId) {
+    const { data: l, error } = await supabase.from('lessons').select('*').eq('id', lessonId).single();
+    if (error || !l) return;
+
+    const newTitle = prompt('Edit Lesson Title:', l.title);
+    if (newTitle === null) return;
+    const newNum = prompt('Edit Lesson ID / Number:', l.lesson_number || '');
+    if (newNum === null) return;
+
+    const { error: upErr } = await supabase.from('lessons').update({ title: newTitle, lesson_number: newNum }).eq('id', lessonId);
+    if (upErr) alert('Error updating lesson: ' + upErr.message);
+    else fetchAdminCourses();
 };
 
 window.deleteLesson = async function(lessonId) {
@@ -166,6 +229,7 @@ window.deleteLesson = async function(lessonId) {
 window.handleAddLesson = async function(e, courseId) {
     e.preventDefault();
     const form = e.target;
+    const lesson_number = form.querySelector('.lesson-num-input').value;
     const title = form.querySelector('.lesson-title-input').value;
     const lesson_type = form.querySelector('.lesson-type-select').value;
     const file = form.querySelector('.lesson-file-input').files[0];
@@ -187,6 +251,7 @@ window.handleAddLesson = async function(e, courseId) {
 
     const { error: insErr } = await supabase.from('lessons').insert([{
         course_id: courseId,
+        lesson_number,
         title,
         lesson_type,
         content_url
@@ -202,12 +267,14 @@ window.handleAddLesson = async function(e, courseId) {
 
 document.getElementById('create-course-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const editId = document.getElementById('course-id-field').value;
+    const course_number = document.getElementById('course-number').value;
     const title = document.getElementById('course-title').value;
     const description = document.getElementById('course-desc').value;
     const ceu_credits = parseFloat(document.getElementById('course-ceu').value) || 0;
     const thumbFile = document.getElementById('course-thumbnail').files[0];
 
-    let thumbnail_url = null;
+    let thumbnail_url = undefined;
     if (thumbFile) {
         const path = `thumbnails/${Date.now()}_${thumbFile.name}`;
         const { error: upErr } = await supabase.storage.from('lms-content').upload(path, thumbFile);
@@ -217,19 +284,30 @@ document.getElementById('create-course-form')?.addEventListener('submit', async 
         }
     }
 
-    const payload = { title, description, ceu_credits, thumbnail_url };
+    const payload = { course_number, title, description, ceu_credits };
+    if (thumbnail_url !== undefined) payload.thumbnail_url = thumbnail_url;
+
     if (currentAdminProfile.role === 'super_admin') {
         const tSel = document.getElementById('course-tenant-id').value;
-        if (tSel) payload.tenant_id = tSel;
+        payload.tenant_id = tSel || null;
     } else if (currentAdminProfile.tenant_id) {
         payload.tenant_id = currentAdminProfile.tenant_id;
     }
 
-    const { error } = await supabase.from('courses').insert([payload]);
+    let error;
+    if (editId) {
+        const res = await supabase.from('courses').update(payload).eq('id', editId);
+        error = res.error;
+    } else {
+        const res = await supabase.from('courses').insert([payload]);
+        error = res.error;
+    }
+
     if (error) {
         alert('Error: ' + error.message);
     } else {
-        document.getElementById('create-course-form').reset();
+        alert(editId ? 'Course successfully updated!' : 'Course successfully created!');
+        window.resetCourseForm();
         loadDashboardStats();
         fetchAdminCourses();
     }
@@ -248,7 +326,7 @@ async function loadTenantSelectDropdowns() {
 async function loadStudentTenantDropdowns() {
     const { data: tenants } = await supabase.from('tenants').select('id, name').eq('service_status', 'active');
     const container = document.getElementById('student-tenants-container');
-    if (container) {
+    if (container && container.children.length === 0) {
         container.innerHTML = `
             <div class="flex gap-2 items-center student-tenant-row bg-slate-950 p-3 rounded-lg border border-slate-800">
                 <select required class="student-tenant-select w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
@@ -273,142 +351,6 @@ window.addStudentTenantRow = async function() {
         <button type="button" onclick="this.closest('.student-tenant-row').remove()" class="px-3 py-2 bg-red-600/20 text-red-400 rounded text-xs">Remove</button>
     `;
     container.appendChild(row);
-};
-
-// --- TENANT CREATE / EDIT HANDLERS ---
-document.getElementById('create-tenant-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const editId = document.getElementById('edit-tenant-id').value;
-    const name = document.getElementById('t-name').value;
-    const slug = document.getElementById('t-slug').value.trim().toLowerCase().replace(/\s+/g, '-');
-    const logoFile = document.getElementById('t-logo').files[0];
-
-    let logo_url = undefined;
-    if (logoFile) {
-        const path = `logos/${Date.now()}_${logoFile.name}`;
-        const { error: upErr } = await supabase.storage.from('lms-content').upload(path, logoFile);
-        if (!upErr) {
-            const { data } = supabase.storage.from('lms-content').getPublicUrl(path);
-            logo_url = data.publicUrl;
-        }
-    }
-
-    const payload = {
-        name,
-        slug,
-        street_address: document.getElementById('t-street').value,
-        street_address_2: document.getElementById('t-street2').value,
-        city: document.getElementById('t-city').value,
-        state: document.getElementById('t-state').value,
-        zip: document.getElementById('t-zip').value,
-        phone: document.getElementById('t-phone').value,
-        website: document.getElementById('t-website').value,
-        training_contact_first_name: document.getElementById('t-train-first').value,
-        training_contact_last_name: document.getElementById('t-train-last').value,
-        training_contact_email: document.getElementById('t-train-email').value,
-        training_contact_phone: document.getElementById('t-train-phone').value,
-        technical_contact_first_name: document.getElementById('t-tech-first').value,
-        technical_contact_last_name: document.getElementById('t-tech-last').value,
-        technical_contact_email: document.getElementById('t-tech-email').value,
-        technical_contact_phone: document.getElementById('t-tech-phone').value,
-        issue_link: document.getElementById('t-issuelink').value
-    };
-    if (logo_url) payload.logo_url = logo_url;
-
-    let error;
-    if (editId) {
-        const res = await supabase.from('tenants').update(payload).eq('id', editId);
-        error = res.error;
-    } else {
-        payload.service_status = 'active';
-        const res = await supabase.from('tenants').insert([payload]);
-        error = res.error;
-    }
-
-    if (error) {
-        alert('Error: ' + error.message);
-    } else {
-        alert(editId ? 'Tenant successfully updated!' : 'Tenant profile successfully created!');
-        window.resetTenantForm();
-        loadTenantsManagement();
-    }
-});
-
-window.resetTenantForm = function() {
-    document.getElementById('create-tenant-form').reset();
-    document.getElementById('edit-tenant-id').value = '';
-    document.getElementById('tenant-form-heading').textContent = 'Create Full Tenant Profile';
-    document.getElementById('tenant-submit-btn').textContent = 'Save Organization Profile';
-    document.getElementById('cancel-tenant-edit').classList.add('hidden');
-};
-
-window.editTenant = async function(tenantId) {
-    const { data: t, error } = await supabase.from('tenants').select('*').eq('id', tenantId).single();
-    if (error || !t) return;
-
-    document.getElementById('edit-tenant-id').value = t.id;
-    document.getElementById('t-name').value = t.name || '';
-    document.getElementById('t-slug').value = t.slug || '';
-    document.getElementById('t-street').value = t.street_address || '';
-    document.getElementById('t-street2').value = t.street_address_2 || '';
-    document.getElementById('t-city').value = t.city || '';
-    document.getElementById('t-state').value = t.state || '';
-    document.getElementById('t-zip').value = t.zip || '';
-    document.getElementById('t-phone').value = t.phone || '';
-    document.getElementById('t-website').value = t.website || '';
-    document.getElementById('t-train-first').value = t.training_contact_first_name || '';
-    document.getElementById('t-train-last').value = t.training_contact_last_name || '';
-    document.getElementById('t-train-email').value = t.training_contact_email || '';
-    document.getElementById('t-train-phone').value = t.training_contact_phone || '';
-    document.getElementById('t-tech-first').value = t.technical_contact_first_name || '';
-    document.getElementById('t-tech-last').value = t.technical_contact_last_name || '';
-    document.getElementById('t-tech-email').value = t.technical_contact_email || '';
-    document.getElementById('t-tech-phone').value = t.technical_contact_phone || '';
-    document.getElementById('t-issuelink').value = t.issue_link || '';
-
-    document.getElementById('tenant-form-heading').textContent = `Edit Tenant: ${t.name}`;
-    document.getElementById('tenant-submit-btn').textContent = 'Update Organization Profile';
-    document.getElementById('cancel-tenant-edit').classList.remove('hidden');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-};
-
-async function loadTenantsManagement() {
-    const tbody = document.getElementById('tenants-table-tbody');
-    if (!tbody) return;
-    const { data: tenants } = await supabase.from('tenants').select('*').order('created_at', { ascending: false });
-
-    if (!tenants || tenants.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500 italic">No tenants found.</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = tenants.map(t => `
-        <tr class="hover:bg-slate-950/50">
-            <td class="p-3 font-semibold text-purple-300">${t.name}</td>
-            <td class="p-3 font-mono text-slate-400">${t.slug}</td>
-            <td class="p-3">
-                <span class="px-2 py-0.5 rounded text-xs ${t.service_status === 'active' ? 'bg-emerald-600/20 text-emerald-400' : t.service_status === 'paused' ? 'bg-amber-600/20 text-amber-400' : 'bg-red-600/20 text-red-400'}">${t.service_status.toUpperCase()}</span>
-            </td>
-            <td class="p-3 text-right relative">
-                <div class="inline-block relative">
-                    <button onclick="window.toggleActionMenu(event, '${t.id}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold">⋮</button>
-                    <div id="menu-${t.id}" class="hidden absolute right-0 mt-2 w-36 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-20 py-1 text-left">
-                        <button onclick="window.editTenant('${t.id}')" class="w-full px-3 py-1.5 text-xs text-blue-300 hover:bg-slate-700">Edit Profile</button>
-                        <button onclick="window.toggleTenantStatus('${t.id}', '${t.service_status === 'active' ? 'paused' : 'active'}')" class="w-full px-3 py-1.5 text-xs text-amber-300 hover:bg-slate-700">${t.service_status === 'active' ? 'Pause' : 'Activate'}</button>
-                        <button onclick="window.toggleTenantStatus('${t.id}', 'archived')" class="w-full px-3 py-1.5 text-xs text-red-400 hover:bg-slate-700">Archive</button>
-                    </div>
-                </div>
-            </td>
-        </tr>
-    `).join('');
-
-    loadTenantSelectDropdowns();
-}
-
-window.toggleTenantStatus = async function(tenantId, newStatus) {
-    const { error } = await supabase.from('tenants').update({ service_status: newStatus }).eq('id', tenantId);
-    if (error) alert('Error updating status: ' + error.message);
-    else loadTenantsManagement();
 };
 
 // --- STUDENT MANAGEMENT & EDIT ---
@@ -469,7 +411,6 @@ window.editStudent = async function(userId) {
     document.getElementById('prov-firstname').value = s.first_name || '';
     document.getElementById('prov-lastname').value = s.last_name || '';
     
-    // Password not required when editing
     document.getElementById('prov-pass').removeAttribute('required');
     document.getElementById('prov-pass-container').classList.add('hidden');
 
@@ -477,18 +418,21 @@ window.editStudent = async function(userId) {
     document.getElementById('student-submit-btn').textContent = 'Update Student Participant';
     document.getElementById('cancel-student-edit').classList.remove('hidden');
 
-    // Load associated tenants
     const { data: stData } = await supabase.from('student_tenants').select('tenant_id').eq('user_id', userId);
+    const container = document.getElementById('student-tenants-container');
+    container.innerHTML = '';
+    
+    const { data: tenants } = await supabase.from('tenants').select('id, name').eq('service_status', 'active');
+
     if (stData && stData.length > 0) {
-        await loadStudentTenantDropdowns();
-        const container = document.getElementById('student-tenants-container');
-        container.innerHTML = '';
         for (let st of stData) {
             await window.addStudentTenantRow();
             const rows = container.querySelectorAll('.student-tenant-row');
             const lastRow = rows[rows.length - 1];
             if (lastRow) lastRow.querySelector('select').value = st.tenant_id;
         }
+    } else {
+        await window.addStudentTenantRow();
     }
 };
 
@@ -514,6 +458,7 @@ document.getElementById('provision-student-form')?.addEventListener('submit', as
     if (editId) {
         await supabase.from('profiles').update({ email, unique_identifier, first_name, last_name }).eq('id', editId);
         await supabase.from('student_tenants').delete().eq('user_id', editId);
+        
         const tenantSelects = document.querySelectorAll('.student-tenant-select');
         for (let sel of tenantSelects) {
             if (sel.value) {
@@ -530,6 +475,7 @@ document.getElementById('provision-student-form')?.addEventListener('submit', as
         }
         const userId = authData.user.id;
         await supabase.from('profiles').upsert([{ id: userId, email, role: 'student', unique_identifier, first_name, last_name, status: 'active' }]);
+        
         const tenantSelects = document.querySelectorAll('.student-tenant-select');
         for (let sel of tenantSelects) {
             if (sel.value) {
@@ -576,7 +522,6 @@ window.loadAdminManagementTable = async function() {
                     <div class="inline-block relative">
                         <button onclick="window.toggleActionMenu(event, '${a.id}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold">⋮</button>
                         <div id="menu-${a.id}" class="hidden absolute right-0 mt-2 w-36 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-20 py-1 text-left">
-                            <button onclick="window.editAdmin('${a.id}')" class="w-full px-3 py-1.5 text-xs text-blue-300 hover:bg-slate-700">Edit Profile</button>
                             <button onclick="window.updateProfileStatus('${a.id}', 'active')" class="w-full px-3 py-1.5 text-xs text-emerald-300 hover:bg-slate-700">Activate</button>
                             <button onclick="window.updateProfileStatus('${a.id}', 'suspended')" class="w-full px-3 py-1.5 text-xs text-amber-300 hover:bg-slate-700">Suspend</button>
                             <button onclick="window.updateProfileStatus('${a.id}', 'archived')" class="w-full px-3 py-1.5 text-xs text-red-400 hover:bg-slate-700">Archive</button>
@@ -586,17 +531,6 @@ window.loadAdminManagementTable = async function() {
             </tr>
         `;
     }).join('');
-};
-
-window.editAdmin = async function(userId) {
-    const { data: a, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    if (error || !a) return;
-
-    window.switchAdminTab('tenants');
-    document.getElementById('admin-tenant-select').value = a.tenant_id || '';
-    document.getElementById('admin-prov-email').value = a.email || '';
-    document.getElementById('admin-prov-pass').removeAttribute('required');
-    alert(`Editing Admin: ${a.email}. Update details in the Tenant Admin provisioning card.`);
 };
 
 window.toggleActionMenu = function(e, id) {
