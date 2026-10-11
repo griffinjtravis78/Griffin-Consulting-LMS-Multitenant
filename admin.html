@@ -18,7 +18,6 @@
             <button onclick="window.switchAdminTab('courses')" id="tab-btn-courses" class="px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition">Courses & Content</button>
             <button onclick="window.switchAdminTab('students')" id="tab-btn-students" class="px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition">Provision Student</button>
             <button onclick="window.switchAdminTab('reports')" id="tab-btn-reports" class="px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition">Compliance Reports</button>
-            <!-- Super Admin Only Tab Button -->
             <button onclick="window.switchAdminTab('tenants')" id="tab-btn-tenants" class="hidden px-3 py-1.5 text-xs font-semibold rounded text-purple-300 hover:text-white transition bg-purple-600/20 border border-purple-500/30">Platform Tenants</button>
             <button onclick="supabase.auth.signOut().then(() => window.location.href = './index.html')" class="px-3 py-1.5 text-xs font-semibold rounded bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition">Sign Out</button>
         </div>
@@ -27,7 +26,7 @@
     <!-- Main Content Area -->
     <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-8 space-y-8">
 
-        <!-- Top Metrics Summary Cards -->
+        <!-- Metrics Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Courses</p>
@@ -46,31 +45,36 @@
         <!-- TAB 1: COURSES & CONTENT -->
         <div id="admin-tab-courses" class="space-y-8">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Create Course Form Column -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
                     <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3">Create New Course</h2>
                     <form id="create-course-form" class="space-y-4">
                         <div>
                             <label class="block text-xs font-medium text-slate-400 mb-1">Course Title</label>
-                            <input type="text" id="course-title" placeholder="e.g., Public Sector Leadership" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+                            <input type="text" id="course-title" placeholder="e.g., Public Sector Leadership" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-400 mb-1">Description</label>
-                            <textarea id="course-desc" rows="3" placeholder="Course overview..." class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-blue-500"></textarea>
+                            <textarea id="course-desc" rows="3" placeholder="Course overview..." class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100"></textarea>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-400 mb-1">CEU Credits</label>
-                            <input type="number" step="0.25" id="course-ceu" value="0.00" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+                            <input type="number" step="0.25" id="course-ceu" value="0.00" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
+                        </div>
+                        <!-- Granular Course Tenant Assignment (Super Admin can assign multiple/global) -->
+                        <div id="course-tenant-assignment-container" class="hidden">
+                            <label class="block text-xs font-medium text-purple-400 mb-1">Assign to Tenant Organization</label>
+                            <select id="course-tenant-id" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
+                                <option value="">-- Global / All Tenants --</option>
+                            </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Course Thumbnail Image</label>
-                            <input type="file" id="course-thumbnail" accept="image/*" class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500">
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Thumbnail Image</label>
+                            <input type="file" id="course-thumbnail" accept="image/*" class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white">
                         </div>
                         <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Create Course</button>
                     </form>
                 </div>
 
-                <!-- Active Courses List Column -->
                 <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
                     <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3">Active Courses & Lessons</h2>
                     <div id="admin-course-list" class="space-y-6">
@@ -85,7 +89,7 @@
             <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl max-w-4xl mx-auto space-y-6">
                 <div class="border-b border-slate-800 pb-3">
                     <h2 class="text-lg font-bold text-blue-400">Provision New Student Participant</h2>
-                    <p class="text-xs text-slate-400 mt-1">Create user credentials, agent licenses, and organization records.</p>
+                    <p class="text-xs text-slate-400 mt-1">Create user credentials, agent licenses, and multi-organization associations.</p>
                 </div>
 
                 <div id="student-success-msg" class="hidden p-4 bg-emerald-900/50 border border-emerald-500 text-emerald-200 text-xs rounded-lg"></div>
@@ -118,63 +122,19 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div class="md:col-span-1">
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Phone Number</label>
-                            <input type="text" id="prov-phone" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Street Address</label>
-                            <input type="text" id="prov-street" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-                        <div class="md:col-span-1">
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Street Address 2</label>
-                            <input type="text" id="prov-street2" placeholder="Suite / Apt" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">City</label>
-                            <input type="text" id="prov-city" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">State</label>
-                            <input type="text" id="prov-state" required placeholder="MO" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Zip Code</label>
-                            <input type="text" id="prov-zip" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
-                        </div>
-                    </div>
-
-                    <!-- Agent Licenses Section -->
+                    <!-- Multi-Organization Association Selector -->
                     <div class="space-y-3 border-t border-slate-800 pt-4">
                         <div class="flex justify-between items-center">
-                            <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Agent Licenses</h3>
-                            <button type="button" onclick="window.addAgentRow()" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded text-xs font-semibold transition">+ Add License</button>
+                            <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Associated Tenant Organizations</h3>
+                            <button type="button" onclick="window.addStudentTenantRow()" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded text-xs font-semibold transition">+ Add Org Association</button>
                         </div>
-                        <div id="agent-rows-container" class="space-y-3">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950 p-3 rounded-lg border border-slate-800 agent-row">
-                                <div>
-                                    <label class="block text-xs font-medium text-slate-400 mb-1">Agent ID</label>
-                                    <input type="text" required class="agent-id-input w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100" placeholder="e.g., AG-88492">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium text-slate-400 mb-1">Agent State</label>
-                                    <input type="text" required class="agent-state-input w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100" placeholder="e.g., MO">
-                                </div>
+                        <div id="student-tenants-container" class="space-y-3">
+                            <div class="flex gap-4 items-center student-tenant-row bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                <select required class="student-tenant-select w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
+                                    <option value="">-- Select Organization --</option>
+                                </select>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Organizations Section -->
-                    <div class="space-y-3 border-t border-slate-800 pt-4">
-                        <div class="flex justify-between items-center">
-                            <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Associated Organizations</h3>
-                            <button type="button" onclick="window.addOrgRow()" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded text-xs font-semibold transition">+ Add Organization</button>
-                        </div>
-                        <div id="org-rows-container" class="space-y-3"></div>
                     </div>
 
                     <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Provision Student Participant</button>
@@ -190,7 +150,7 @@
                         <h2 class="text-lg font-bold text-blue-400">State Compliance & Completion Ledger</h2>
                         <p class="text-xs text-slate-400 mt-1">Verified course completion audit trail for regulatory reporting.</p>
                     </div>
-                    <button onclick="window.exportComplianceCSV()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-2">Export CSV Report</button>
+                    <button onclick="window.exportComplianceCSV()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition">Export CSV Report</button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs text-slate-300">
@@ -215,28 +175,76 @@
         <!-- TAB 4: PLATFORM TENANTS (SUPER ADMIN ONLY) -->
         <div id="admin-tab-tenants" class="hidden space-y-8">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Create Tenant Organization Form -->
+                <!-- Comprehensive Tenant Profile & Creation Form -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
-                    <h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Create New Tenant</h2>
+                    <h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Create Full Tenant Profile</h2>
                     <div id="tenant-success-msg" class="hidden p-3 bg-emerald-900/50 border border-emerald-500 text-emerald-200 text-xs rounded-lg"></div>
                     <div id="tenant-error-msg" class="hidden p-3 bg-red-900/50 border border-red-500 text-red-200 text-xs rounded-lg"></div>
+                    
                     <form id="create-tenant-form" class="space-y-4">
                         <div>
                             <label class="block text-xs font-medium text-slate-400 mb-1">Organization Name</label>
-                            <input type="text" id="tenant-name" required placeholder="e.g. Midwest Public Safety" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
+                            <input type="text" id="t-name" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-400 mb-1">URL Slug</label>
-                            <input type="text" id="tenant-slug" required placeholder="e.g. midwest-public-safety" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 font-mono text-xs">
+                            <input type="text" id="t-slug" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 font-mono text-xs">
                         </div>
-                        <button type="submit" class="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Create Organization</button>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Organization Logo</label>
+                            <input type="file" id="t-logo" accept="image/*" class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-purple-600 file:text-white">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="t-street" placeholder="Street Address" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                            <input type="text" id="t-street2" placeholder="Suite / Apt" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="text" id="t-city" placeholder="City" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                            <input type="text" id="t-state" placeholder="State" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                            <input type="text" id="t-zip" placeholder="Zip" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="t-phone" placeholder="Org Phone" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                            <input type="text" id="t-website" placeholder="Website URL" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                        </div>
+
+                        <!-- Training Contact -->
+                        <div class="border-t border-slate-800 pt-3 space-y-2">
+                            <p class="text-xs font-semibold text-purple-300 uppercase">Training Contact</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="text" id="t-train-first" placeholder="First Name" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                                <input type="text" id="t-train-last" placeholder="Last Name" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="email" id="t-train-email" placeholder="Email" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                                <input type="text" id="t-train-phone" placeholder="Phone" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                            </div>
+                        </div>
+
+                        <!-- Technical Contact -->
+                        <div class="border-t border-slate-800 pt-3 space-y-2">
+                            <p class="text-xs font-semibold text-purple-300 uppercase">Technical Contact</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="text" id="t-tech-first" placeholder="First Name" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                                <input type="text" id="t-tech-last" placeholder="Last Name" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="email" id="t-tech-email" placeholder="Email" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                                <input type="text" id="t-tech-phone" placeholder="Phone" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Issue Ticketing URL</label>
+                            <input type="url" id="t-issuelink" placeholder="https://ticketing.system/submit" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
+                        </div>
+
+                        <button type="submit" class="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Save Organization Profile</button>
                     </form>
 
-                    <!-- Provision Tenant Admin Form -->
+                    <!-- Provision Tenant Admin -->
                     <div class="border-t border-slate-800 pt-6 space-y-4">
                         <h3 class="text-sm font-bold text-purple-400">Provision Tenant Admin</h3>
-                        <div id="admin-success-msg" class="hidden p-3 bg-emerald-900/50 border border-emerald-500 text-emerald-200 text-xs rounded-lg"></div>
-                        <div id="admin-error-msg" class="hidden p-3 bg-red-900/50 border border-red-500 text-red-200 text-xs rounded-lg"></div>
                         <form id="provision-tenant-admin-form" class="space-y-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Select Organization</label>
@@ -252,22 +260,22 @@
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Temporary Password</label>
                                 <input type="password" id="admin-prov-pass" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100">
                             </div>
-                            <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-lg transition">Create Tenant Admin</button>
+                            <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition">Create Tenant Admin</button>
                         </form>
                     </div>
                 </div>
 
-                <!-- Active Tenants List Column -->
+                <!-- Active Tenants List & Service Control Table -->
                 <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
-                    <h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Active Platform Tenants</h2>
+                    <h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3">Active Platform Tenants & Service Controls</h2>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs text-slate-300">
                             <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
                                 <tr>
                                     <th class="p-3">Organization Name</th>
                                     <th class="p-3">Slug</th>
-                                    <th class="p-3">Tenant ID</th>
-                                    <th class="p-3">Created At</th>
+                                    <th class="p-3">Service Status</th>
+                                    <th class="p-3">Actions (Pause / Archive / Edit)</th>
                                 </tr>
                             </thead>
                             <tbody id="tenants-table-tbody" class="divide-y divide-slate-800">
@@ -283,13 +291,6 @@
     <!-- Footer -->
     <footer class="bg-slate-900 border-t border-slate-800 px-6 py-4 text-center text-xs text-slate-400 flex justify-between items-center flex-wrap gap-4">
         <div>&copy; 2026 Griffin Consulting. All rights reserved. Strategy | Performance | People.</div>
-        <div class="flex gap-4 flex-wrap">
-            <button onclick="openLegalModal('terms')" class="hover:text-white transition">Terms of Service</button>
-            <button onclick="openLegalModal('privacy')" class="hover:text-white transition">Privacy Policy</button>
-            <button onclick="openLegalModal('ip')" class="hover:text-white transition">IP & Copyright</button>
-            <button onclick="openLegalModal('outcomes')" class="hover:text-white transition">Outcome Disclaimer</button>
-            <button onclick="openLegalModal('accessibility')" class="hover:text-white transition">Accessibility</button>
-        </div>
     </footer>
 </body>
 </html>
