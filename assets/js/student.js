@@ -16,7 +16,6 @@ let activeTenantId = null;
         .eq('user_id', currentStudentProfile.id);
 
     if (error || !studentTenants || studentTenants.length === 0) {
-        // Fallback to profiles.tenant_id if junction table entry is missing
         if (currentStudentProfile.tenants) {
             currentStudentTenants = [{ tenants: currentStudentProfile.tenants }];
         } else {
@@ -29,7 +28,6 @@ let activeTenantId = null;
         currentStudentTenants = studentTenants;
     }
 
-    // Determine active tenant from session or default to first
     activeTenantId = sessionStorage.getItem('active_tenant_id');
     let currentTenantObj = currentStudentTenants.map(st => st.tenants).find(t => t.id === activeTenantId);
 
@@ -39,7 +37,6 @@ let activeTenantId = null;
         sessionStorage.setItem('active_tenant_id', activeTenantId);
     }
 
-    // Service pause verification modal/alert intercept
     if (currentTenantObj.service_status && currentTenantObj.service_status !== 'active') {
         alert(`Service has been paused, temporarily. Please Contact your IT Dept for further information:\n${currentTenantObj.technical_contact_first_name || 'IT'} ${currentTenantObj.technical_contact_last_name || 'Support'} (${currentTenantObj.technical_contact_email || 'support@org.gov'})`);
         await supabase.auth.signOut();
@@ -47,7 +44,6 @@ let activeTenantId = null;
         return;
     }
 
-    // Update Navigation Header Title and Branding Logo
     const tenantName = currentTenantObj.name || 'Organization';
     const navTitle = document.querySelector('nav h1');
     if (navTitle) navTitle.textContent = `${tenantName} LMS — Student Portal`;
@@ -58,14 +54,12 @@ let activeTenantId = null;
         logoImg.classList.remove('hidden');
     }
 
-    // Render support ticket link if configured
     const ticketLink = document.getElementById('ticket-support-link');
     if (ticketLink && currentTenantObj.issue_link) {
         ticketLink.href = currentTenantObj.issue_link;
         ticketLink.classList.remove('hidden');
     }
 
-    // Render multi-org dropdown selector if assigned to multiple organizations
     if (currentStudentTenants.length > 1) {
         const switcher = document.getElementById('student-org-switcher');
         if (switcher) {
@@ -85,16 +79,22 @@ window.switchStudentOrg = function(tenantId) {
     location.reload();
 };
 
-// Tab Navigation for Student Portal
 window.switchStudentTab = function(tabName) {
-    document.getElementById('student-tab-courses').classList.add('hidden');
-    document.getElementById('student-tab-profile').classList.add('hidden');
+    const tabCourses = document.getElementById('student-tab-courses');
+    const tabProfile = document.getElementById('student-tab-profile');
+    if (tabCourses) tabCourses.classList.add('hidden');
+    if (tabProfile) tabProfile.classList.add('hidden');
 
-    document.getElementById('tab-btn-courses').className = 'px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition';
-    document.getElementById('tab-btn-profile').className = 'px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition';
+    const btnCourses = document.getElementById('tab-btn-courses');
+    const btnProfile = document.getElementById('tab-btn-profile');
+    if (btnCourses) btnCourses.className = 'px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition';
+    if (btnProfile) btnProfile.className = 'px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition';
 
-    document.getElementById(`student-tab-${tabName}`).classList.remove('hidden');
-    document.getElementById(`tab-btn-${tabName}`).className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition';
+    const targetTab = document.getElementById(`student-tab-${tabName}`);
+    if (targetTab) targetTab.classList.remove('hidden');
+
+    const targetBtn = document.getElementById(`tab-btn-${tabName}`);
+    if (targetBtn) targetBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition';
 
     if (tabName === 'profile') {
         loadStudentProfileData();
@@ -102,9 +102,9 @@ window.switchStudentTab = function(tabName) {
 };
 
 async function fetchStudentCourses(tenantId) {
-    const container = document.getElementById('student-course-list');
+    const container = document.getElementById('student-course-grid');
+    if (!container) return;
     try {
-        // Fetch courses matching tenant_id or global (tenant_id IS NULL)
         const { data: courses, error } = await supabase
             .from('courses')
             .select('*')
@@ -161,6 +161,8 @@ window.selectCourse = async function(courseId) {
     const isCompleted = !!completion;
 
     const viewer = document.getElementById('lesson-viewer-container');
+    if (!viewer) return;
+
     viewer.innerHTML = `
         <div class="flex justify-between items-start mb-4">
             <div>
@@ -240,7 +242,7 @@ window.markCourseComplete = async function(courseId) {
 };
 
 async function loadStudentProfileData() {
-    if (!currentStudentProfile) return;
+    if (!currentStudentProfile || !document.getElementById('prof-firstname')) return;
 
     document.getElementById('prof-firstname').value = currentStudentProfile.first_name || '';
     document.getElementById('prof-lastname').value = currentStudentProfile.last_name || '';
