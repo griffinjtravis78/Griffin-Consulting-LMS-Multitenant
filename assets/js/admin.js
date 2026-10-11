@@ -3,7 +3,10 @@ import { checkAuth, supabase } from './app.js';
 let currentAdminProfile = null;
 let complianceRecords = [];
 
-window.handleAdminSignOut = async () => { await supabase.auth.signOut(); window.location.href = './index.html'; };
+window.handleAdminSignOut = async () => { 
+    await supabase.auth.signOut(); 
+    window.location.href = './index.html'; 
+};
 
 window.switchAdminTab = (tab) => {
     ['courses', 'students', 'students-list', 'admins-list', 'reports', 'tenants'].forEach(t => {
@@ -20,92 +23,110 @@ window.switchAdminTab = (tab) => {
 };
 
 (async () => {
-    currentAdminProfile = await checkAuth('admin');
-    if (!currentAdminProfile) return;
+    try {
+        currentAdminProfile = await checkAuth('admin');
+        if (!currentAdminProfile) return;
 
-    if (currentAdminProfile.role === 'super_admin') {
-        document.getElementById('tab-btn-tenants')?.classList.remove('hidden');
-        document.getElementById('course-tenant-assignment-container')?.classList.remove('hidden');
-        document.querySelector('nav h1').textContent = `Griffin Consulting Training Institute — Super-Admin Ecosystem`;
-        loadTenantSelectDropdowns();
-    } else {
-        document.querySelector('nav h1').textContent = `${currentAdminProfile.tenants?.name || 'Organization'} LMS — Admin Portal`;
+        if (currentAdminProfile.role === 'super_admin') {
+            document.getElementById('tab-btn-tenants')?.classList.remove('hidden');
+            document.getElementById('course-tenant-assignment-container')?.classList.remove('hidden');
+            document.querySelector('nav h1').textContent = `Griffin Consulting Training Institute — Super-Admin Ecosystem`;
+            loadTenantSelectDropdowns();
+        } else {
+            const tenantName = currentAdminProfile.tenants?.name || 'Organization';
+            document.querySelector('nav h1').textContent = `${tenantName} LMS — Admin Portal`;
+        }
+
+        loadDashboardStats();
+        fetchAdminCourses();
+        fetchComplianceReports();
+        loadStudentTenantDropdowns();
+        loadStudentManagementTable();
+        loadAdminManagementTable();
+    } catch (err) {
+        console.error('Admin initialization exception:', err);
     }
-    loadDashboardStats();
-    fetchAdminCourses();
-    fetchComplianceReports();
-    loadStudentTenantDropdowns();
-    loadStudentManagementTable();
-    loadAdminManagementTable();
 })();
 
 async function loadDashboardStats() {
-    let q = supabase.from('courses').select('*', { count: 'exact', head: true }).eq('archived', false);
-    if (currentAdminProfile.role === 'admin' && currentAdminProfile.tenant_id) q = q.eq('tenant_id', currentAdminProfile.tenant_id);
-    const { count: cCount } = await q;
-    const { count: sCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student');
-    const { count: lCount } = await supabase.from('lessons').select('*', { count: 'exact', head: true });
+    try {
+        let q = supabase.from('courses').select('*', { count: 'exact', head: true }).eq('archived', false);
+        if (currentAdminProfile.role === 'admin' && currentAdminProfile.tenant_id) q = q.eq('tenant_id', currentAdminProfile.tenant_id);
+        const { count: cCount } = await q;
+        const { count: sCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student');
+        const { count: lCount } = await supabase.from('lessons').select('*', { count: 'exact', head: true });
 
-    document.getElementById('stat-total-courses').textContent = cCount || 0;
-    document.getElementById('stat-total-students').textContent = sCount || 0;
-    document.getElementById('stat-total-modules').textContent = lCount || 0;
+        document.getElementById('stat-total-courses').textContent = cCount || 0;
+        document.getElementById('stat-total-students').textContent = sCount || 0;
+        document.getElementById('stat-total-modules').textContent = lCount || 0;
+    } catch (err) {
+        console.error('Error loading stats:', err);
+    }
 }
 
 async function fetchAdminCourses() {
     const container = document.getElementById('admin-course-list');
     if (!container) return;
-    let q = supabase.from('courses').select('*, tenants(name)').order('created_at', { ascending: false });
-    if (currentAdminProfile.role === 'admin' && currentAdminProfile.tenant_id) q = q.eq('tenant_id', currentAdminProfile.tenant_id);
-    const { data: courses } = await q;
+    try {
+        let q = supabase.from('courses').select('*, tenants(name)').order('created_at', { ascending: false });
+        if (currentAdminProfile.role === 'admin' && currentAdminProfile.tenant_id) q = q.eq('tenant_id', currentAdminProfile.tenant_id);
+        const { data: courses } = await q;
 
-    if (!courses || courses.length === 0) { container.innerHTML = `<p class="text-slate-400 text-sm italic">No courses created yet.</p>`; return; }
-    const { data: allLessons } = await supabase.from('lessons').select('*');
+        if (!courses || courses.length === 0) { 
+            container.innerHTML = `<p class="text-slate-400 text-sm italic">No courses created yet.</p>`; 
+            return; 
+        }
+        const { data: allLessons } = await supabase.from('lessons').select('*');
 
-    container.innerHTML = courses.map(course => {
-        const lessons = allLessons ? allLessons.filter(l => l.course_id === course.id) : [];
-        return `
-            <div class="bg-slate-900 p-5 rounded-xl border ${course.archived ? 'border-red-900/50 opacity-75' : 'border-slate-700'} space-y-4">
-                <div class="flex justify-between items-start flex-wrap gap-4">
-                    <div class="flex gap-4 items-center">
-                        ${course.thumbnail_url ? `<img src="${course.thumbnail_url}" class="w-16 h-16 rounded-lg object-cover border border-slate-700" alt="${course.title}">` : ''}
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs font-mono bg-slate-800 text-blue-400 px-2 py-0.5 rounded">${course.course_number || 'NO ID'}</span>
-                                <h3 class="font-bold text-slate-100 text-base">${course.title} ${course.archived ? '<span class="text-xs text-red-400">(Archived)</span>' : ''}</h3>
-                            </div>
-                            <p class="text-xs text-slate-400 mt-1">${course.description || ''}</p>
-                            <div class="flex gap-3 mt-2">
-                                <span class="text-xs bg-blue-600/20 text-blue-300 px-2 py-0.5 rounded">${course.ceu_credits || 0} CEUs</span>
-                                <span class="text-xs bg-purple-600/20 text-purple-300 px-2 py-0.5 rounded">${course.tenants?.name || 'Global Course'}</span>
+        container.innerHTML = courses.map(course => {
+            const lessons = allLessons ? allLessons.filter(l => l.course_id === course.id) : [];
+            return `
+                <div class="bg-slate-900 p-5 rounded-xl border ${course.archived ? 'border-red-900/50 opacity-75' : 'border-slate-700'} space-y-4">
+                    <div class="flex justify-between items-start flex-wrap gap-4">
+                        <div class="flex gap-4 items-center">
+                            ${course.thumbnail_url ? `<img src="${course.thumbnail_url}" class="w-16 h-16 rounded-lg object-cover border border-slate-700" alt="${course.title}">` : ''}
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-mono bg-slate-800 text-blue-400 px-2 py-0.5 rounded">${course.course_number || 'NO ID'}</span>
+                                    <h3 class="font-bold text-slate-100 text-base">${course.title} ${course.archived ? '<span class="text-xs text-red-400">(Archived)</span>' : ''}</h3>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1">${course.description || ''}</p>
+                                <div class="flex gap-3 mt-2">
+                                    <span class="text-xs bg-blue-600/20 text-blue-300 px-2 py-0.5 rounded">${course.ceu_credits || 0} CEUs</span>
+                                    <span class="text-xs bg-purple-600/20 text-purple-300 px-2 py-0.5 rounded">${course.tenants?.name || 'Global Course'}</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="window.editCourse(${course.id})" class="px-3 py-1 bg-blue-600/20 text-blue-300 hover:bg-blue-600 hover:text-white rounded text-xs transition">Edit</button>
-                        <button onclick="window.toggleCourseArchive(${course.id}, ${!course.archived})" class="px-3 py-1 ${course.archived ? 'bg-emerald-600/20 text-emerald-400' : 'bg-amber-600/20 text-amber-400'} rounded text-xs">${course.archived ? 'Restore' : 'Archive'}</button>
-                        <button onclick="window.toggleCourseAccordion(${course.id})" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs">Toggle Modules ↕</button>
-                    </div>
-                </div>
-                <div id="course-modules-section-${course.id}" class="hidden border-t border-slate-800 pt-4 space-y-3">
-                    <div class="flex justify-between items-center"><h4 class="text-xs font-semibold text-slate-300 uppercase">Modules</h4><span class="text-xs text-slate-400">${lessons.length} Modules</span></div>
-                    <div class="space-y-2">
-                        ${lessons.map(l => `<div class="flex justify-between items-center bg-slate-950 p-2.5 rounded border border-slate-800 text-xs">
-                            <span class="text-slate-200">[${l.lesson_type.toUpperCase()}]${l.title}</span>
-                            <button onclick="window.deleteLesson(${l.id})" class="text-red-400 hover:text-red-300">Remove</button>
-                        </div>`).join('')}
-                    </div>
-                    <form onsubmit="window.handleAddLesson(event, ${course.id})" class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2 mt-2">
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-                            <input type="text" placeholder="Lesson ID" required class="lesson-num-input px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                            <input type="text" placeholder="Title" required class="lesson-title-input px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                            <select class="lesson-type-select px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"><option value="scorm">SCORM</option><option value="video">Video</option><option value="pdf">PDF</option></select>
-                            <input type="file" required class="lesson-file-input text-xs text-slate-400 file:bg-blue-600 file:text-white file:rounded file:border-0 file:px-2 file:py-1">
+                        <div class="flex gap-2">
+                            <button onclick="window.editCourse(${course.id})" class="px-3 py-1 bg-blue-600/20 text-blue-300 hover:bg-blue-600 hover:text-white rounded text-xs transition">Edit</button>
+                            <button onclick="window.toggleCourseArchive(${course.id}, ${!course.archived})" class="px-3 py-1 ${course.archived ? 'bg-emerald-600/20 text-emerald-400' : 'bg-amber-600/20 text-amber-400'} rounded text-xs">${course.archived ? 'Restore' : 'Archive'}</button>
+                            <button onclick="window.toggleCourseAccordion(${course.id})" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs">Toggle Modules ↕</button>
                         </div>
-                        <button type="submit" class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-semibold">Attach Module</button>
-                    </form>
-                </div>
-            </div>`;
-    }).join('');
+                    </div>
+                    <!-- Default collapsed with class "hidden" -->
+                    <div id="course-modules-section-${course.id}" class="hidden border-t border-slate-800 pt-4 space-y-3">
+                        <div class="flex justify-between items-center"><h4 class="text-xs font-semibold text-slate-300 uppercase">Modules</h4><span class="text-xs text-slate-400">${lessons.length} Modules</span></div>
+                        <div class="space-y-2">
+                            ${lessons.map(l => `<div class="flex justify-between items-center bg-slate-950 p-2.5 rounded border border-slate-800 text-xs">
+                                <span class="text-slate-200">[${l.lesson_type.toUpperCase()}]${l.title}</span>
+                                <button onclick="window.deleteLesson(${l.id})" class="text-red-400 hover:text-red-300">Remove</button>
+                            </div>`).join('')}
+                        </div>
+                        <form onsubmit="window.handleAddLesson(event, ${course.id})" class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2 mt-2">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+                                <input type="text" placeholder="Lesson ID" required class="lesson-num-input px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                                <input type="text" placeholder="Title" required class="lesson-title-input px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                                <select class="lesson-type-select px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100"><option value="scorm">SCORM</option><option value="video">Video</option><option value="pdf">PDF</option></select>
+                                <input type="file" required class="lesson-file-input text-xs text-slate-400 file:bg-blue-600 file:text-white file:rounded file:border-0 file:px-2 file:py-1">
+                            </div>
+                            <button type="submit" class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-semibold">Attach Module</button>
+                        </form>
+                    </div>
+                </div>`;
+        }).join('');
+    } catch (err) {
+        console.error('Error fetching admin courses:', err);
+    }
 }
 
 window.toggleCourseAccordion = (id) => document.getElementById(`course-modules-section-${id}`)?.classList.toggle('hidden');
