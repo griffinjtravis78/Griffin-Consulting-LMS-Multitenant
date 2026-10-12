@@ -37,19 +37,25 @@ window.switchAdminTab = function(tabName) {
         currentAdminProfile = await checkAuth('admin');
         if (!currentAdminProfile) return;
 
+        const headerTitle = document.getElementById('admin-portal-header');
+        const logoImg = document.getElementById('admin-tenant-logo');
+
         if (currentAdminProfile.role === 'super_admin') {
             const tenantBtn = document.getElementById('tab-btn-tenants');
             if (tenantBtn) tenantBtn.classList.remove('hidden');
             const courseTenantContainer = document.getElementById('course-tenant-assignment-container');
             if (courseTenantContainer) courseTenantContainer.classList.remove('hidden');
             
-            const navTitle = document.querySelector('nav h1');
-            if (navTitle) navTitle.textContent = `Griffin Consulting Training Institute — Super-Admin Ecosystem`;
+            if (headerTitle) headerTitle.textContent = `Griffin Consulting Training Institute — Super-Admin Ecosystem`;
             loadTenantSelectDropdowns();
         } else {
             const tenantName = currentAdminProfile.tenants?.name || 'Organization';
-            const navTitle = document.querySelector('nav h1');
-            if (navTitle) navTitle.textContent = `${tenantName} LMS — Admin Portal`;
+            if (headerTitle) headerTitle.textContent = `${tenantName} — Tenant Admin Portal`;
+        }
+
+        if (logoImg && currentAdminProfile.tenants?.logo_url) {
+            logoImg.src = currentAdminProfile.tenants.logo_url;
+            logoImg.classList.remove('hidden');
         }
 
         loadDashboardStats();
@@ -130,7 +136,6 @@ async function fetchAdminCourses() {
                         </div>
                     </div>
 
-                    <!-- Default collapsed with class "hidden" -->
                     <div id="course-modules-section-${course.id}" class="hidden border-t border-slate-800 pt-4 space-y-3">
                         <div class="flex justify-between items-center">
                             <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Course Modules & SCORM Packages</h4>
