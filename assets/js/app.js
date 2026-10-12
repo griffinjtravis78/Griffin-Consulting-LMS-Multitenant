@@ -41,14 +41,6 @@ export async function checkAuth(requiredRole) {
             }
         }
 
-        // Check if user's assigned tenant service is paused or archived
-        if (profile.tenants && profile.tenants.service_status && profile.tenants.service_status !== 'active') {
-            alert(`Service has been paused, temporarily. Please Contact your IT Dept for further information:\n${profile.tenants.technical_contact_first_name || 'IT'} ${profile.tenants.technical_contact_last_name || 'Support'} (${profile.tenants.technical_contact_email || 'support@org.gov'})`);
-            await supabase.auth.signOut();
-            window.location.href = './index.html';
-            return null;
-        }
-
         return profile;
     } catch (err) {
         console.error('Auth guard exception:', err);
