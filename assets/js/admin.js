@@ -157,18 +157,21 @@ async function fetchAdminCourses() {
                         </div>
 
                         <form onsubmit="window.handleAddLesson(event, ${course.id})" class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-3 mt-3">
-                            <p class="text-xs font-bold text-blue-400">+ Add Lesson or SCORM Module</p>
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+                            <p class="text-xs font-bold text-blue-400">+ Add Lesson, Video or SCORM Module</p>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                                 <input type="text" placeholder="Lesson ID (e.g. L-101)" required class="lesson-num-input px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 font-mono">
                                 <input type="text" placeholder="Module Title" required class="lesson-title-input px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
                                 <select required class="lesson-type-select px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
-                                    <option value="scorm">SCORM / HTML5 Zip</option>
-                                    <option value="video">Video (MP4)</option>
+                                    <option value="scorm">SCORM / HTML5 Package</option>
+                                    <option value="video">Video (MP4 / Stream)</option>
                                     <option value="pdf">PDF Document</option>
                                 </select>
-                                <input type="file" required class="lesson-file-input text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-blue-600 file:text-white">
                             </div>
-                            <button type="submit" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold transition">Upload & Attach Module</button>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <input type="file" class="lesson-file-input text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-blue-600 file:text-white">
+                                <input type="url" placeholder="Or paste External Content URL (https://...)" class="lesson-url-input px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100">
+                            </div>
+                            <button type="submit" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold transition">Save & Attach Module</button>
                         </form>
                     </div>
                 </div>
@@ -254,21 +257,26 @@ window.handleAddLesson = async function(e, courseId) {
     const title = form.querySelector('.lesson-title-input').value;
     const lesson_type = form.querySelector('.lesson-type-select').value;
     const file = form.querySelector('.lesson-file-input').files[0];
+    const externalUrl = form.querySelector('.lesson-url-input').value.trim();
 
-    if (!file) {
-        alert('Please select a file to upload.');
+    let content_url = externalUrl;
+
+    if (!content_url && !file) {
+        alert('Please either upload a file or provide an external content URL.');
         return;
     }
 
-    const path = `lessons/${Date.now()}_${file.name}`;
-    const { error: upErr } = await supabase.storage.from('lms-content').upload(path, file);
-    if (upErr) {
-        alert('Upload Error: ' + upErr.message);
-        return;
-    }
+    if (file) {
+        const path = `lessons/${Date.now()}_${file.name}`;
+        const { error: upErr } = await supabase.storage.from('lms-content').upload(path, file);
+        if (upErr) {
+            alert('Upload Error: ' + upErr.message);
+            return;
+        }
 
-    const { data } = supabase.storage.from('lms-content').getPublicUrl(path);
-    const content_url = data.publicUrl;
+        const { data } = supabase.storage.from('lms-content').getPublicUrl(path);
+        content_url = data.publicUrl;
+    }
 
     const { error: insErr } = await supabase.from('lessons').insert([{
         course_id: courseId,
