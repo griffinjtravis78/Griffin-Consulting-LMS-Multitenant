@@ -39,9 +39,9 @@ window.switchAdminTab = function(tabName) {
 
         const headerTitle = document.getElementById('admin-portal-header');
         const logoImg = document.getElementById('admin-tenant-logo');
+        const tenantBtn = document.getElementById('tab-btn-tenants');
 
         if (currentAdminProfile.role === 'super_admin') {
-            const tenantBtn = document.getElementById('tab-btn-tenants');
             if (tenantBtn) tenantBtn.classList.remove('hidden');
             const courseTenantContainer = document.getElementById('course-tenant-assignment-container');
             if (courseTenantContainer) courseTenantContainer.classList.remove('hidden');
@@ -51,6 +51,8 @@ window.switchAdminTab = function(tabName) {
         } else {
             const tenantName = currentAdminProfile.tenants?.name || 'Organization';
             if (headerTitle) headerTitle.textContent = `${tenantName} — Tenant Admin Portal`;
+            // Strictly hide platform tenants tab for regular tenant admins
+            if (tenantBtn) tenantBtn.classList.add('hidden');
         }
 
         if (logoImg && currentAdminProfile.tenants?.logo_url) {
@@ -533,9 +535,23 @@ window.loadStudentManagementTable = async function() {
         return;
     }
 
-    const { data: allStudentTenants } = await supabase.from('student_tenants').select('user_id, tenants(name)');
+    const { data: allStudentTenants } = await supabase.from('student_tenants').select('user_id, tenant_id, tenants(name)');
 
-    tbody.innerHTML = students.map(s => {
+    // Scope students for regular tenant admins
+    let filteredStudents = students;
+    if (currentAdminProfile.role === 'admin' && currentAdminProfile.tenant_id) {
+        const tenantStudentIds = (allStudentTenants || [])
+            .filter(st => st.tenant_id === currentAdminProfile.tenant_id)
+            .map(st => st.user_id);
+        filteredStudents = students.filter(s => tenantStudentIds.includes(s.id));
+    }
+
+    if (filteredStudents.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500 italic">No students found for this organization.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filteredStudents.map(s => {
         const studentOrgs = allStudentTenants ? allStudentTenants.filter(st => st.user_id === s.id).map(st => st.tenants?.name).filter(Boolean) : [];
         const orgNames = studentOrgs.length > 0 ? studentOrgs.join(', ') : 'Unassigned';
         const status = s.status || 'active';
@@ -653,11 +669,19 @@ document.getElementById('provision-student-form')?.addEventListener('submit', as
 window.loadAdminManagementTable = async function() {
     const tbody = document.getElementById('admin-admins-tbody');
     if (!tbody) return;
-    const { data: admins } = await supabase
+
+    let adminQuery = supabase
         .from('profiles')
         .select('*, tenants(name)')
         .in('role', ['admin', 'super_admin'])
         .order('created_at', { ascending: false });
+
+    // Scope admins for regular tenant admins
+    if (currentAdminProfile.role === 'admin' && currentAdminProfile.tenant_id) {
+        adminQuery = adminQuery.eq('tenant_id', currentAdminProfile.tenant_id);
+    }
+
+    const { data: admins } = await adminQuery;
 
     if (!admins || admins.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500 italic">No admins found.</td></tr>`;
