@@ -13,7 +13,10 @@ window.switchAdminTab = function(tabName) {
         const el = document.getElementById(`admin-tab-${t}`);
         if (el) el.classList.add('hidden');
         const btn = document.getElementById(`tab-btn-${t}`);
-        if (btn) btn.className = 'px-3 py-1.5 text-xs font-semibold rounded text-slate-300 hover:text-white transition';
+        if (btn) {
+            btn.classList.remove('bg-blue-600', 'bg-purple-600', 'text-white');
+            btn.classList.add('text-slate-300', 'hover:text-white');
+        }
     });
 
     const targetTab = document.getElementById(`admin-tab-${tabName}`);
@@ -21,9 +24,8 @@ window.switchAdminTab = function(tabName) {
 
     const targetBtn = document.getElementById(`tab-btn-${tabName}`);
     if (targetBtn) {
-        targetBtn.className = tabName === 'tenants' 
-            ? 'px-3 py-1.5 text-xs font-semibold rounded bg-purple-600 text-white transition' 
-            : 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white transition';
+        targetBtn.classList.remove('text-slate-300', 'hover:text-white', 'bg-blue-600', 'bg-purple-600');
+        targetBtn.classList.add('text-white', tabName === 'tenants' ? 'bg-purple-600' : 'bg-blue-600');
     }
 
     if (tabName === 'tenants') loadTenantsManagement();
