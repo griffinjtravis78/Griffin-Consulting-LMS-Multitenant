@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = 'https://nfitvzrbaxsqemtayhft.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5maXR2enJiYXhzcWVtdGF5aGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjQ3ODQ5NjIwNTN9.placeholder_key_sig'; // Replace with active anon key if needed
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5maXR2enJiYXhzcWVtdGF5aGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjQ3ODQ5NjIwNTN9.placeholder_key_sig';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -26,7 +26,7 @@ export async function checkAuth(requiredRole = 'student') {
         return null;
     }
 
-    if (requiredRole === 'admin' && profile.role !== 'ADMIN' && profile.role !== 'SUPER_ADMIN') {
+    if (requiredRole === 'admin' && profile.role !== 'admin' && profile.role !== 'super_admin') {
         alert('Access denied: Administrator privileges required.');
         window.location.href = './student.html';
         return null;
@@ -35,7 +35,7 @@ export async function checkAuth(requiredRole = 'student') {
     return profile;
 }
 
-// Login Form Event Listener (if present on index.html)
+// Login Form Event Listener
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .eq('id', data.user.id)
                 .single();
 
-            if (profile && (profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN')) {
+            if (profile && (profile.role === 'admin' || profile.role === 'super_admin')) {
                 window.location.href = './admin.html';
             } else {
                 window.location.href = './student.html';
