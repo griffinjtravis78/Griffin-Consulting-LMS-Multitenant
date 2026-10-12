@@ -44,8 +44,11 @@ let activeTenantId = null;
     }
 
     const tenantName = currentTenantObj.name || 'Organization';
-    const navTitle = document.querySelector('nav h1');
-    if (navTitle) navTitle.textContent = `${tenantName} LMS — Student Portal`;
+    const studentFullName = `${currentStudentProfile.first_name || ''} ${currentStudentProfile.last_name || ''}`.trim();
+    const navTitle = document.getElementById('nav-portal-title');
+    if (navTitle) {
+        navTitle.textContent = `${tenantName} LMS — Student Portal${studentFullName ? ` | ${studentFullName}` : ''}`;
+    }
 
     const logoImg = document.getElementById('tenant-logo-img');
     if (logoImg && currentTenantObj.logo_url) {
@@ -55,6 +58,11 @@ let activeTenantId = null;
 
     fetchStudentCourses(activeTenantId);
 })();
+
+window.handleSignOut = async function() {
+    await supabase.auth.signOut();
+    window.location.href = './index.html';
+};
 
 window.switchStudentTab = function(tabName) {
     const tabCourses = document.getElementById('student-tab-courses');
@@ -305,10 +313,6 @@ function loadStudentProfileView() {
                     <label class="block text-slate-400 mb-1">Phone Number</label>
                     <input type="text" id="prof-phone" value="${currentStudentProfile.phone || ''}" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100">
                 </div>
-                <div>
-                    <label class="block text-slate-400 mb-1">Street Address</label>
-                    <input type="text" id="prof-street" value="${currentStudentProfile.street_address || ''}" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100">
-                </div>
                 <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded font-semibold transition focus:ring-2 focus:ring-blue-500">Save Profile Updates</button>
             </form>
         </div>
@@ -319,8 +323,7 @@ function loadStudentProfileView() {
         const payload = {
             department: document.getElementById('prof-dept').value,
             division: document.getElementById('prof-div').value,
-            phone: document.getElementById('prof-phone').value,
-            street_address: document.getElementById('prof-street').value
+            phone: document.getElementById('prof-phone').value
         };
 
         const { error } = await supabase.from('profiles').update(payload).eq('id', currentStudentProfile.id);
