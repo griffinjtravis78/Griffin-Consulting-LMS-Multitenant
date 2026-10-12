@@ -22,7 +22,7 @@ export async function checkAuth(requiredRole) {
 
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('*, tenants(*)')
+            .select('*')
             .eq('id', session.user.id)
             .single();
 
